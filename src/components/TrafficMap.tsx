@@ -12,6 +12,21 @@ export default function TrafficMap({ context }: { context: string }) {
     fetch('/api/traffic-map-data').then(res => res.json()).then(setData);
   }, []);
 
+  const generateBezier = (start: [number, number], end: [number, number]) => {
+      const points = [];
+      const [x1, y1] = start;
+      const [x2, y2] = end;
+      // Calculate control point for a nice curve
+      const cx = (x1 + x2) / 2;
+      const cy = Math.max(y1, y2) + (Math.abs(x2 - x1) * 0.2);
+      for (let t = 0; t <= 1; t += 0.05) {
+          const x = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2;
+          const y = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
+          points.push([x, y]);
+      }
+      return points;
+  };
+
   return (
     <div className="pt-2">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -70,27 +85,45 @@ export default function TrafficMap({ context }: { context: string }) {
             {showLocal && (
                 <>
                     {/* Active Silk Paths */}
-                    {data.slice(0, 3).map((d, i) => (
-                        <Line
-                            key={`silk-${i}`}
-                            from={[90.4125, 23.8103]}
-                            to={d.coordinates as [number, number]}
-                            stroke="#f59e0b"
-                            strokeWidth={2}
-                            strokeLinecap="round"
-                            className="opacity-70 animate-pulse"
-                            style={{
-                                strokeDasharray: "4 4",
-                                strokeDashoffset: "10",
-                                animation: "dash 5s linear infinite"
-                            }}
-                        />
-                    ))}
+                    <Geographies geography={{
+                        type: "FeatureCollection",
+                        features: data.slice(0, 5).map(d => ({
+                            type: "Feature",
+                            properties: { flow: d.flow, latency: d.latency },
+                            geometry: {
+                                type: "LineString",
+                                coordinates: generateBezier([90.4125, 23.8103], d.coordinates as [number, number])
+                            }
+                        }))
+                    }}>
+                        {({ geographies }) => geographies.map((geo, i) => {
+                            const isHighVolume = geo.properties.flow > 400;
+                            const healthColor = geo.properties.latency < 50 ? "#10b981" : geo.properties.latency < 120 ? "#f59e0b" : "#ef4444";
+                            return (
+                                <Geography
+                                    key={`bezier-${i}`}
+                                    geography={geo}
+                                    fill="transparent"
+                                    stroke={healthColor}
+                                    strokeWidth={Math.max(1, geo.properties.flow / 150)}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="opacity-80 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                                    style={{
+                                        default: { outline: "none" },
+                                        hover: { outline: "none" },
+                                        pressed: { outline: "none" },
+                                    }}
+                                    strokeDasharray="6 6"
+                                />
+                            );
+                        })}
+                    </Geographies>
                     
                     <Marker coordinates={[90.4125, 23.8103]}> {/* Dhaka */}
                         <circle r={6} fill="#f59e0b" className="animate-pulse" />
-                        <circle r={12} fill="#f59e0b" fillOpacity={0.2} className="animate-ping" />
-                        <text textAnchor="middle" y={-15} className="text-[10px] font-bold fill-amber-600 dark:fill-amber-400 pointer-events-none">Local PoP</text>
+                        <circle r={12} fill="#f59e0b" fillOpacity={0.2} className="animate-ping drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
+                        <text textAnchor="middle" y={-15} className="text-[10px] font-bold fill-amber-600 dark:fill-amber-400 pointer-events-none drop-shadow-md">Local PoP</text>
                     </Marker>
                 </>
             )}

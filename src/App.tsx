@@ -22,7 +22,8 @@ import UserSettingsModal from './components/UserSettingsModal';
 import SmartRoutingModal from './components/SmartRoutingModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import SmartSilkRouting from './components/SmartSilkRouting';
-import { Moon, Sun, Search, Download, TrendingUp, TrendingDown, Settings, RotateCcw, AlertTriangle, Monitor, Globe, Smartphone } from 'lucide-react';
+import SSLAcceleratorChart from './components/SSLAcceleratorChart';
+import { Moon, Sun, Search, Download, TrendingUp, TrendingDown, Settings, RotateCcw, AlertTriangle, Monitor, Globe, Smartphone, GripHorizontal, Camera } from 'lucide-react';
 
 const PROVIDER_GROUPS = {
   "Cloud": ["Google", "AWS", "Cloudflare", "Tencent Cloud", "Alibaba Cloud", "Oracle Cloud", "IBM Cloud", "Microsoft Azure"],
@@ -30,10 +31,13 @@ const PROVIDER_GROUPS = {
   "ISP/Other": ["EdgeNext", "Ookla", "IMO", "PUBG", "Free Fire", "DigitalOcean", "Linode", "Vultr", "Hetzner", "OVHcloud"]
 };
 
+import GenericStatusChart from './components/GenericStatusChart';
+
 const INITIAL_SECTIONS = [
   { id: "Network Traffic Trend", name: "Network Traffic Trend", status: 'green', trend: 'up' },
-  { id: "Certificate Health", name: "Certificate Health", status: 'yellow', trend: 'down' },
+  { id: "SSL Accelerator", name: "SSL Accelerator", status: 'green', trend: 'up' },
   { id: "Traffic Intelligence", name: "Traffic Intelligence", status: 'green', trend: 'up' },
+  { id: "Certificate Health", name: "Certificate Health", status: 'yellow', trend: 'down' },
   { id: "Smart Silk Routing", name: "Smart Silk Routing", status: 'green', trend: 'up' },
   { id: "FTN-AI Integration", name: "FTN-AI Integration", status: 'yellow', trend: 'up' },
   { id: "Auth / RBAC", name: "Auth / RBAC", status: 'green', trend: 'down' },
@@ -61,12 +65,15 @@ const SortableSection = ({ section, context }: { section: any, context: string }
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   
-  const isChart = section.name === "Traffic Intelligence" || section.name === "Network Traffic Trend" || section.name === "Certificate Health" || section.name === "Smart Silk Routing";
+  const isChart = section.name === "Traffic Intelligence" || section.name === "Network Traffic Trend" || section.name === "Certificate Health" || section.name === "Smart Silk Routing" || section.name === "SSL Accelerator";
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={`bg-white dark:bg-[#111] p-5 rounded-2xl shadow-sm border dark:border-white/5 border-gray-200 cursor-grab hover:shadow-md transition-shadow ${isChart ? 'md:col-span-2' : ''}`}>
-      {section.name !== "Smart Silk Routing" && (
-        <div className="flex items-center justify-between mb-4">
+    <div ref={setNodeRef} style={style} className={`bg-white dark:bg-[#111] flex flex-col p-5 rounded-2xl shadow-sm border dark:border-white/5 border-gray-200 hover:shadow-md transition-shadow relative group ${isChart ? 'md:col-span-2' : ''}`}>
+      <div {...attributes} {...listeners} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 z-10 p-2">
+          <GripHorizontal size={18} />
+      </div>
+      {section.name !== "Smart Silk Routing" && section.name !== "SSL Accelerator" && (
+        <div className="flex items-center justify-between mb-4 pr-6">
           <div className="flex items-center">
               <div className={`w-2.5 h-2.5 rounded-full ${section.status === 'green' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : section.status === 'yellow' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'} inline-block mr-3`} />
               <h2 className="text-[15px] font-bold tracking-tight text-gray-800 dark:text-gray-100">{section.name}</h2>
@@ -78,17 +85,9 @@ const SortableSection = ({ section, context }: { section: any, context: string }
       {section.name === "Network Traffic Trend" && <TrafficTrendChart context={context} />}
       {section.name === "Certificate Health" && <CertStatusChart />}
       {section.name === "Smart Silk Routing" && <SmartSilkRouting />}
+      {section.name === "SSL Accelerator" && <SSLAcceleratorChart />}
       {!isChart && (
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Status</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-            section.status === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400' :
-            section.status === 'yellow' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' :
-            'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
-          }`}>
-            {section.status.toUpperCase()}
-          </span>
-        </div>
+        <GenericStatusChart name={section.name} status={section.status} trend={section.trend} />
       )}
     </div>
   );
@@ -162,6 +161,26 @@ export default function App() {
   };
 
   const exportReport = () => window.location.href = '/api/export-report';
+  const exportSnapshot = () => {
+    const snapshot = {
+      timestamp: new Date().toISOString(),
+      signature: `SHA256:${Math.random().toString(36).substring(2, 15)}`,
+      environment: "FTN-CertControl-Production",
+      compliance: "SOC2/ISO27001",
+      modules: sections,
+      activeProviders: selectedProviders,
+      deviceContext: deviceContext
+    };
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FTN_CertControl_Snapshot_${Date.now()}.json`;
+    a.click();
+    window.dispatchEvent(new CustomEvent('addAuditLog', { detail: { action: 'Configuration Snapshot Exported', user: 'admin' } }));
+    setAlert('System Configuration Snapshot downloaded securely.');
+    setTimeout(() => setAlert(null), 3000);
+  };
   const performBulkAction = async (action: string) => {
     await fetch('/api/bulk-action', { 
       method: 'POST', 
@@ -203,9 +222,12 @@ export default function App() {
                       <option>Local Device</option>
                   </select>
                 </div>
-                <button onClick={() => setShowSettings(true)} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Settings"><Settings size={18} /></button>
-                <button onClick={exportReport} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Export Report"><Download size={18} /></button>
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Toggle Theme">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+                <div className="flex gap-2">
+                  <button onClick={exportSnapshot} className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-xl text-sm font-semibold transition-colors shadow-sm" title="Snapshot System Configuration"><Camera size={16} /> <span className="hidden md:inline">Snapshot Config</span></button>
+                  <button onClick={() => setShowSettings(true)} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Settings"><Settings size={18} /></button>
+                  <button onClick={exportReport} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Export Report"><Download size={18} /></button>
+                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Toggle Theme">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+                </div>
               </div>
             </header>
             
@@ -246,26 +268,27 @@ export default function App() {
                             const isSelected = selectedProviders.includes(provider);
                             
                             return (
-                              <button 
-                                key={provider}
-                                onClick={() => setSelectedProviders(prev => isSelected ? prev.filter(p => p !== provider) : [...prev, provider])}
-                                title={health?.error ? `Error ${health.error}` : ''}
-                                className={`
-                                  relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2
-                                  ${health?.error 
-                                    ? 'border-red-500/50 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' 
-                                    : isSelected 
-                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.2)]' 
-                                      : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a] hover:border-gray-300 dark:hover:border-white/20 text-gray-700 dark:text-gray-300'
-                                  }
-                                  ${isGlow ? 'animate-pulse ring-2 ring-red-500/50' : ''}
-                                `}
-                              >
-                                {provider} 
-                                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${health?.health && health.health > 80 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'}`}>
-                                  {health?.health || 0}%
-                                </span>
-                              </button>
+                              <ErrorBoundary key={provider} fallbackName={provider} variant="badge">
+                                <button 
+                                  onClick={() => setSelectedProviders(prev => isSelected ? prev.filter(p => p !== provider) : [...prev, provider])}
+                                  title={health?.error ? `Error ${health.error}` : ''}
+                                  className={`
+                                    relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2
+                                    ${health?.error 
+                                      ? 'border-red-500/50 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' 
+                                      : isSelected 
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.2)]' 
+                                        : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a] hover:border-gray-300 dark:hover:border-white/20 text-gray-700 dark:text-gray-300'
+                                    }
+                                    ${isGlow ? 'animate-pulse ring-2 ring-red-500/50' : ''}
+                                  `}
+                                >
+                                  {provider} 
+                                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${health?.health && health.health > 80 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'}`}>
+                                    {health?.health || 0}%
+                                  </span>
+                                </button>
+                              </ErrorBoundary>
                             );
                           })}
                         </div>

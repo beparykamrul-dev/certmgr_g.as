@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 interface Props {
   children?: ReactNode;
   fallbackName?: string;
+  variant?: 'block' | 'badge';
 }
 
 interface State {
@@ -27,6 +28,22 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
+      if (this.props.variant === 'badge') {
+        return (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg text-xs font-medium text-red-600 dark:text-red-400">
+            <AlertTriangle size={14} />
+            <span>{this.props.fallbackName || 'Provider'} Sync Issue</span>
+            <button 
+              onClick={(e) => { e.stopPropagation(); this.setState({ hasError: false }); }}
+              className="ml-1 p-1 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-md transition-colors"
+              title="Retry Fetch"
+            >
+              <RefreshCw size={12} />
+            </button>
+          </div>
+        );
+      }
+
       const isProvider = this.props.fallbackName === 'Traffic Providers' || this.props.fallbackName === 'Traffic Map';
       return (
         <div className="p-6 h-full min-h-[200px] w-full bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-center shadow-inner">

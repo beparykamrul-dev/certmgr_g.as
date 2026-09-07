@@ -133,6 +133,30 @@ async function startServer() {
     ]);
   });
 
+  app.get("/api/ssl-acceleration", (req, res) => {
+    // Generate 60 data points (e.g. last 60 minutes)
+    const data = [];
+    let baseHw = 8000;
+    let baseSw = 2000;
+    
+    for(let i=0; i<60; i++) {
+        // HW usually handles bulk, SW handles fallback/complex cipher suites
+        baseHw += (Math.random() * 1000 - 400); 
+        baseSw += (Math.random() * 200 - 100);
+        
+        // Occasional spike in SW fallback due to unoptimized handshakes
+        const isSpike = Math.random() > 0.9;
+        
+        data.push({
+            time: `-${60-i}m`,
+            hwOffload: Math.max(5000, Math.floor(baseHw)),
+            swFallback: Math.max(500, Math.floor(isSpike ? baseSw * 2.5 : baseSw)),
+            efficiency: Math.min(99.9, Math.max(85, 95 + (Math.random() * 5 - 2))) // %
+        });
+    }
+    res.json(data);
+  });
+
   app.get("/api/latency", (req, res) => {
     const context = req.query.context as string;
     const isLocal = context === 'Local Device';
@@ -178,11 +202,43 @@ async function startServer() {
     }
   });
 
+  app.get("/api/module-trend", (req, res) => {
+    const moduleName = req.query.module as string || 'Unknown';
+    const status = req.query.status as string || 'green';
+    
+    // Generate 60 data points representing 1 hour of data (1 point per minute)
+    let seed = 0;
+    for (let i = 0; i < moduleName.length; i++) {
+        seed += moduleName.charCodeAt(i);
+    }
+    
+    const data = [];
+    for (let i = 0; i < 60; i++) {
+      let baseHealth = status === 'green' ? 95 : status === 'yellow' ? 70 : 40;
+      let baseLatency = status === 'green' ? 20 : status === 'yellow' ? 80 : 200;
+      let baseError = status === 'green' ? 0.1 : status === 'yellow' ? 2.5 : 8.0;
+      
+      let noiseH = (Math.sin(seed + i) * 5) + (Math.cos(seed * i) * 2);
+      let noiseL = (Math.cos(seed + i) * 15) + (Math.sin(seed * i) * 10);
+      let noiseE = Math.abs((Math.sin(seed + i) * 1) + (Math.cos(seed * i) * 0.5));
+      
+      data.push({
+        time: `-${60 - i}m`,
+        health: Math.max(0, Math.min(100, baseHealth + noiseH)),
+        latency: Math.max(1, baseLatency + noiseL),
+        errorRate: Math.max(0, baseError + noiseE)
+      });
+    }
+    res.json(data);
+  });
+
   app.get("/api/traffic-map-data", (req, res) => {
     res.json([
-      { name: "North America", coordinates: [-100, 40], flow: 500 },
-      { name: "Europe", coordinates: [15, 50], flow: 400 },
-      { name: "Asia", coordinates: [100, 30], flow: 600 }
+      { name: "Singapore (AWS)", coordinates: [103.8198, 1.3521], flow: 600, latency: 45 },
+      { name: "Mumbai (GCP)", coordinates: [72.8777, 19.0760], flow: 450, latency: 32 },
+      { name: "Frankfurt (Linode)", coordinates: [8.6821, 50.1109], flow: 200, latency: 135 },
+      { name: "Tokyo (Azure)", coordinates: [139.6917, 35.6895], flow: 350, latency: 110 },
+      { name: "Sydney (Cloudflare)", coordinates: [151.2093, -33.8688], flow: 150, latency: 220 }
     ]);
   });
 
