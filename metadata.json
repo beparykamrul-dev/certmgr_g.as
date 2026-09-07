@@ -1,0 +1,6 @@
+{
+  "name": "FTN CertMgr",
+  "description": "Certificate management dashboard with AI-driven monitoring and network intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
