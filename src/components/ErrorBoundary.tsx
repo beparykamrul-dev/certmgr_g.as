@@ -5,7 +5,6 @@ interface Props {
   children?: ReactNode;
   fallbackName?: string;
   variant?: 'block' | 'badge';
-  key?: any;
 }
 
 interface State {
@@ -13,7 +12,7 @@ interface State {
   error: Error | null;
 }
 
-export default class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -27,7 +26,10 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    // Safely log primitives only to avoid circular reference crashes in iframe console hooks
+    const errMsg = error?.message || (typeof error === 'string' ? error : 'Unknown error');
+    const stack = errorInfo?.componentStack ? String(errorInfo.componentStack) : '';
+    console.error("Uncaught boundary error:", errMsg, stack);
   }
 
   public render() {
@@ -38,7 +40,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle size={14} />
             <span>{this.props.fallbackName || 'Provider'} Sync Issue</span>
             <button 
-              onClick={(e) => { e.stopPropagation(); this.setState({ hasError: false }); }}
+              onClick={(e) => { e.stopPropagation(); this.setState({ hasError: false, error: null }); }}
               className="ml-1 p-1 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-md transition-colors"
               title="Retry Fetch"
             >
@@ -63,7 +65,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               : 'Failed to fetch or render this module. The rest of the dashboard remains fully operational.'}
           </p>
           <button 
-            onClick={() => this.setState({ hasError: false })}
+            onClick={() => this.setState({ hasError: false, error: null })}
             className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-700 dark:text-red-300 rounded-xl text-sm font-semibold transition-colors"
           >
             <RefreshCw size={14} /> Retry Fetch
@@ -75,3 +77,6 @@ export default class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+export default ErrorBoundary;
+

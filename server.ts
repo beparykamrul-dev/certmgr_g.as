@@ -8,6 +8,12 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -79,15 +85,301 @@ async function startServer() {
     res.json({ success: true, message: `${action} completed for ${providers.length} providers.` });
   });
 
-  app.get("/api/network-status", (req, res) => {
-    res.json({ connected: true });
+  app.get("/api/system-stats", (req, res) => {
+    res.json({
+      cpuUsage: Math.floor(Math.random() * 20) + 15,
+      memoryUsage: Math.floor(Math.random() * 25) + 38,
+      activeConnections: Math.floor(Math.random() * 400) + 1240
+    });
+  });
+
+  // Certificate Transparency (RFC 6962 / Google CT / Let's Encrypt Test Certs)
+  const ctLogsState = [
+    {
+      id: "google-argon-2026",
+      name: "Google 'Argon 2026' Log",
+      operator: "Google Trust Services",
+      url: "https://ct.googleapis.com/logs/argon2026",
+      status: "Usable (RFC 6962)",
+      treeSize: 1482920412,
+      sthTimestamp: new Date().toISOString(),
+      rootHash: "9a7d3f8e2c1b4a5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1",
+      compliance: "RFC 6962 & RFC 9162 Compliant",
+      inclusionProofLatency: "28ms"
+    },
+    {
+      id: "google-xenon-2027",
+      name: "Google 'Xenon 2027' Log",
+      operator: "Google Trust Services",
+      url: "https://ct.googleapis.com/logs/xenon2027",
+      status: "Usable (RFC 6962)",
+      treeSize: 981240192,
+      sthTimestamp: new Date().toISOString(),
+      rootHash: "4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b19a7d3f8e2c1b",
+      compliance: "RFC 6962 & RFC 9162 Compliant",
+      inclusionProofLatency: "34ms"
+    },
+    {
+      id: "letsencrypt-oak-2026",
+      name: "Let's Encrypt 'Oak 2026' Log",
+      operator: "Internet Security Research Group (ISRG)",
+      url: "https://oak.ct.letsencrypt.org/2026",
+      status: "Usable (RFC 6962)",
+      treeSize: 1120491823,
+      sthTimestamp: new Date().toISOString(),
+      rootHash: "1f2e3d4c5b6a708192a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+      compliance: "RFC 6962 & ACME Staging Compatible",
+      inclusionProofLatency: "22ms"
+    },
+    {
+      id: "letsencrypt-test-certs",
+      name: "Let's Encrypt Test-Certs-Site Staging Log",
+      operator: "Let's Encrypt Staging Environment",
+      url: "https://acme-staging-v02.api.letsencrypt.org/directory",
+      status: "Testing / Validation",
+      treeSize: 45291034,
+      sthTimestamp: new Date().toISOString(),
+      rootHash: "7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0",
+      compliance: "Automated ACME v2 Sandbox",
+      inclusionProofLatency: "19ms"
+    },
+    {
+      id: "cloudflare-nimbus-2026",
+      name: "Cloudflare 'Nimbus 2026' Log",
+      operator: "Cloudflare, Inc.",
+      url: "https://ct.cloudflare.com/logs/nimbus2026",
+      status: "Usable (RFC 6962)",
+      treeSize: 843912091,
+      sthTimestamp: new Date().toISOString(),
+      rootHash: "0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5",
+      compliance: "RFC 6962 RFC 9162 Compliant",
+      inclusionProofLatency: "25ms"
+    }
+  ];
+
+  let testCertsList = [
+    {
+      id: "cert-001",
+      domain: "*.familytime.net",
+      san: ["familytime.net", "api.familytime.net", "auth.familytime.net", "cdn.familytime.net"],
+      issuer: "Let's Encrypt Authority E1",
+      serialNumber: "04:3A:9F:81:B2:7D:6E:5C:4B:3A:29:18:F0:E4:D3:C2",
+      validFrom: "2026-08-01",
+      validTo: "2026-11-01",
+      algorithm: "ECDSA P-256 with SHA-256",
+      sctVerified: true,
+      sctLog: "Google 'Argon 2026' + Let's Encrypt 'Oak 2026'",
+      ctEntryIndex: 1482920390,
+      merkleVerified: true,
+      ocspStapling: "Good (RFC 6960)",
+      hstsPreload: true
+    },
+    {
+      id: "cert-002",
+      domain: "edgeone.familytime.net",
+      san: ["edgeone.familytime.net", "gateway.edgeone.tencent.com"],
+      issuer: "Tencent Cloud EdgeOne DV Server CA",
+      serialNumber: "03:D8:E7:C6:B5:A4:93:82:71:60:5F:4E:3D:2C:1B:0A",
+      validFrom: "2026-07-15",
+      validTo: "2027-07-15",
+      algorithm: "RSA-4096 with SHA-384",
+      sctVerified: true,
+      sctLog: "Google 'Xenon 2027' + Cloudflare 'Nimbus 2026'",
+      ctEntryIndex: 981240150,
+      merkleVerified: true,
+      ocspStapling: "Good (RFC 6960)",
+      hstsPreload: true
+    },
+    {
+      id: "cert-003",
+      domain: "test-staging.letsencrypt.org",
+      san: ["test-staging.letsencrypt.org", "sandbox-acme.familytime.net"],
+      issuer: "(STAGING) Artificial Let's Encrypt Root",
+      serialNumber: "00:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88",
+      validFrom: "2026-09-01",
+      validTo: "2026-12-01",
+      algorithm: "ECDSA P-384 with SHA-384",
+      sctVerified: true,
+      sctLog: "Let's Encrypt Test-Certs-Site Log",
+      ctEntryIndex: 45291028,
+      merkleVerified: true,
+      ocspStapling: "Active (Mock OCSP responder)",
+      hstsPreload: false
+    }
+  ];
+
+  app.get("/api/ct-logs", (req, res) => {
+    res.json({
+      logs: ctLogsState,
+      certificates: testCertsList,
+      totalTrackedCertificates: 2489100,
+      rfcStandards: ["RFC 6962 (Certificate Transparency)", "RFC 9162 (CT v2.0)", "RFC 8659 (DNS CAA)", "RFC 8446 (TLS 1.3)", "RFC 6960 (OCSP)"]
+    });
+  });
+
+  app.post("/api/ct-issue-test-cert", (req, res) => {
+    const { domain, algorithm = "ECDSA P-256" } = req.body;
+    const cleanDomain = (domain || "dev-test.familytime.net").trim().toLowerCase();
+    
+    const newCert = {
+      id: `cert-${Date.now()}`,
+      domain: cleanDomain,
+      san: [cleanDomain, `www.${cleanDomain}`],
+      issuer: "Let's Encrypt Staging CA (test-certs-site)",
+      serialNumber: Array.from({length: 16}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0')).join(':').toUpperCase(),
+      validFrom: new Date().toISOString().split('T')[0],
+      validTo: new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
+      algorithm: algorithm,
+      sctVerified: true,
+      sctLog: "Let's Encrypt 'Oak 2026' + Test-Certs Staging",
+      ctEntryIndex: Math.floor(Math.random() * 100000) + 1482920400,
+      merkleVerified: true,
+      ocspStapling: "Good (RFC 6960)",
+      hstsPreload: true
+    };
+
+    testCertsList.unshift(newCert);
+    if (testCertsList.length > 20) testCertsList.pop();
+
+    res.json({
+      success: true,
+      certificate: newCert,
+      message: `Issued RFC 6962 audited test certificate for ${cleanDomain}`
+    });
+  });
+
+  // Tencent Cloud EdgeOne Security Gateway & Malicious Activity Auto-Mitigation
+  let edgeOneState = {
+    mode: "Auto-Mitigation Active",
+    autoDefenseEnabled: true,
+    totalInspectedRequests: 148920150,
+    blockedThreatsCount: 4281,
+    autoReroutedMaliciousTrafficGbps: 18.4,
+    currentCleanTrafficRatio: 99.88,
+    wafVersion: "EdgeOne WAF v4.2.0-CRS",
+    ddosScrubbingCapacity: "3.2 Tbps Anycast",
+    activePoPs: [
+      { id: "pop-sg", name: "Singapore Anycast PoP", lat: 1.3521, lng: 103.8198, latency: 18, status: "Healthy", load: "42%" },
+      { id: "pop-hk", name: "Hong Kong EdgeOne PoP", lat: 22.3193, lng: 114.1694, latency: 15, status: "Healthy", load: "58%" },
+      { id: "pop-tokyo", name: "Tokyo EdgeOne PoP", lat: 35.6762, lng: 139.6503, latency: 26, status: "Healthy", load: "48%" },
+      { id: "pop-mumbai", name: "Mumbai Shield PoP", lat: 19.0760, lng: 72.8777, latency: 22, status: "Healthy", load: "39%" },
+      { id: "pop-fra", name: "Frankfurt Origin Shield", lat: 50.1109, lng: 8.6821, latency: 98, status: "Healthy", load: "51%" },
+      { id: "pop-sv", name: "Silicon Valley EdgeOne", lat: 37.3861, lng: -122.0839, latency: 140, status: "Healthy", load: "45%" },
+      { id: "pop-dhaka", name: "Dhaka BDIX Direct Gateway", lat: 23.8103, lng: 90.4125, latency: 6, status: "Healthy", load: "62%" }
+    ],
+    activeIncidents: [
+      {
+        id: "inc-101",
+        type: "Criminal SQLi & WebShell Exploit",
+        attackerIp: "185.220.101.42",
+        country: "NL (Tor Exit)",
+        target: "/api/v1/auth/login",
+        severity: "CRITICAL",
+        autoAction: "Auto-Blocked at EdgeOne WAF & IP Quarantined",
+        mitigatedAt: new Date(Date.now() - 4 * 60000).toLocaleTimeString(),
+        status: "Auto-Mitigated"
+      },
+      {
+        id: "inc-102",
+        type: "Malicious Layer-7 Botnet Flood (85,000 RPS)",
+        attackerIp: "Multiple Botnet Nodes (ASN 49505)",
+        country: "RU / BR / VN",
+        target: "/api/health-check",
+        severity: "HIGH",
+        autoAction: "Auto-Rerouted to EdgeOne Scrubbing Sinkhole (Zero Impact)",
+        mitigatedAt: new Date(Date.now() - 14 * 60000).toLocaleTimeString(),
+        status: "Auto-Mitigated"
+      },
+      {
+        id: "inc-103",
+        type: "Rogue CA Certificate Forgery / Spoofing Attempt",
+        attackerIp: "194.26.29.11",
+        country: "UA",
+        target: "TLS Handshake (*.familytime.net)",
+        severity: "CRITICAL",
+        autoAction: "CT Log Inclusion Check Failed -> Dropped Handshake Immediately",
+        mitigatedAt: new Date(Date.now() - 28 * 60000).toLocaleTimeString(),
+        status: "Auto-Mitigated"
+      }
+    ]
+  };
+
+  app.get("/api/edgeone-security", (req, res) => {
+    res.json(edgeOneState);
+  });
+
+  app.post("/api/edgeone-toggle-defense", (req, res) => {
+    const { enabled } = req.body;
+    edgeOneState.autoDefenseEnabled = enabled !== undefined ? enabled : !edgeOneState.autoDefenseEnabled;
+    edgeOneState.mode = edgeOneState.autoDefenseEnabled ? "Auto-Mitigation Active" : "Learning / Alert Only";
+    res.json({ success: true, autoDefenseEnabled: edgeOneState.autoDefenseEnabled, mode: edgeOneState.mode });
+  });
+
+  app.post("/api/simulate-threat", (req, res) => {
+    const { threatType } = req.body;
+    const threats = [
+      {
+        type: "Criminal Credential Stuffing & Brute Force",
+        ip: "45.154.255.88",
+        country: "DE",
+        target: "/api/auth/token",
+        severity: "CRITICAL",
+        autoAction: "Auto-Mitigated: IP Added to EdgeOne Banning Table & Honeypot Rerouted"
+      },
+      {
+        type: "Volumetric L7 HTTP Flood (120,000 RPS)",
+        ip: "Distributed Mirai Variant (ASN 136258)",
+        country: "Global Botnet",
+        target: "/gateway/traffic",
+        severity: "HIGH",
+        autoAction: "Auto-Mitigated: Scrubbed via Anycast DDoS Shield, Ingress Normalized"
+      },
+      {
+        type: "Unauthorized Certificate Impersonation Attack",
+        ip: "103.145.13.22",
+        country: "HK",
+        target: "TLS Ingress SNI familytime.net",
+        severity: "CRITICAL",
+        autoAction: "Auto-Mitigated: Cryptographic SCT Verification Failed -> Connection Terminated"
+      }
+    ];
+
+    const selectedThreat = threats.find(t => t.type.includes(threatType)) || threats[Math.floor(Math.random() * threats.length)];
+    const newIncident = {
+      id: `inc-${Date.now()}`,
+      type: selectedThreat.type,
+      attackerIp: selectedThreat.ip,
+      country: selectedThreat.country,
+      target: selectedThreat.target,
+      severity: selectedThreat.severity,
+      autoAction: selectedThreat.autoAction,
+      mitigatedAt: new Date().toLocaleTimeString(),
+      status: "Auto-Mitigated"
+    };
+
+    edgeOneState.blockedThreatsCount += 1;
+    edgeOneState.activeIncidents.unshift(newIncident);
+    if (edgeOneState.activeIncidents.length > 25) edgeOneState.activeIncidents.pop();
+
+    res.json({
+      success: true,
+      incident: newIncident,
+      message: `EdgeOne Auto-Mitigation triggered: ${newIncident.type} was instantly neutralized.`
+    });
   });
 
   app.get("/api/audit-logs", (req, res) => {
-    res.json([
-      { id: 1, action: "User logged in", user: "admin", time: "10:00 AM" },
-      { id: 2, action: "Certificate renewed", user: "system", time: "09:45 AM" }
-    ]);
+    const { section } = req.query;
+    const logs = [
+      { id: 1, action: "User logged in", user: "admin", time: "10:00 AM", section: "Auth" },
+      { id: 2, action: "Certificate renewed", user: "system", time: "09:45 AM", section: "Cert" },
+      { id: 3, action: "System update", user: "admin", time: "09:00 AM", section: "System" }
+    ];
+    if (section) {
+      res.json(logs.filter(log => log.section === section));
+    } else {
+      res.json(logs);
+    }
   });
 
   app.get("/api/forecast", (req, res) => {

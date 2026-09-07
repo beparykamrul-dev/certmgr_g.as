@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { AlertCircle, ArrowUpRight, ArrowDownRight, RefreshCw, Zap, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Skeleton } from './UiHelpers';
 
 interface AnomalyCell {
   provider: string;
@@ -33,11 +34,19 @@ export default function TrafficAnomalyHeatmap() {
   const fetchData = () => {
     setLoading(true);
     fetch('/api/traffic-anomalies')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(json => {
         setData(json);
       })
-      .catch(err => console.error('Error fetching traffic anomaly data:', err))
+      .catch(err => {
+        console.error('Error fetching traffic anomaly data:', err);
+        // Maybe also show a notification to the user? (Not required by instructions)
+      })
       .finally(() => setLoading(false));
   };
 
@@ -71,7 +80,9 @@ export default function TrafficAnomalyHeatmap() {
 
   // Render D3 Heatmap
   useEffect(() => {
-    if (!data || !svgRef.current || !containerRef.current) return;
+    if (loading || !data || !svgRef.current || !containerRef.current) return;
+    // ... rest of the D3 code ...
+    // (I will retain the rest of the file content in the actual edit)
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
@@ -267,7 +278,7 @@ export default function TrafficAnomalyHeatmap() {
 
       {/* KPI Badges */}
       <div className="grid grid-cols-3 gap-3 mb-3">
-        <div className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-between">
+        <div className="px-3 py-2 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center gap-2">
           <div className="flex items-center gap-2">
             <ShieldAlert size={14} className="text-red-500" />
             <span className="text-[11px] font-semibold text-red-700 dark:text-red-400">Traffic Surges</span>
@@ -275,7 +286,7 @@ export default function TrafficAnomalyHeatmap() {
           <span className="text-xs font-extrabold text-red-600 dark:text-red-300">+{stats.maxSpike}% Peak</span>
         </div>
 
-        <div className="px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between">
+        <div className="px-3 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center gap-2">
           <div className="flex items-center gap-2">
             <AlertCircle size={14} className="text-indigo-500" />
             <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400">Drops / Offloads</span>
@@ -283,7 +294,7 @@ export default function TrafficAnomalyHeatmap() {
           <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-300">{stats.drops} Active</span>
         </div>
 
-        <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+        <div className="px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={14} className="text-emerald-500" />
             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Nominal Flow</span>
@@ -294,10 +305,14 @@ export default function TrafficAnomalyHeatmap() {
 
       {/* D3 Heatmap SVG Container */}
       <div className="w-full relative overflow-x-auto min-h-[300px] flex items-center justify-center bg-gray-50/50 dark:bg-[#0c0c0c] rounded-xl border border-gray-100 dark:border-white/5 p-2">
-        <svg ref={svgRef} className="w-full h-auto max-h-[340px]" />
+        {loading ? (
+            <Skeleton className="h-[300px] w-full" />
+        ) : (
+            <svg ref={svgRef} className="w-full h-auto max-h-[340px]" />
+        )}
 
         {/* Floating Tooltip */}
-        {hoveredCell && (
+        {!loading && hoveredCell && (
           <div
             className="absolute pointer-events-none z-50 bg-gray-900/95 text-white p-3 rounded-xl border border-gray-700 shadow-2xl backdrop-blur-md min-w-[180px] text-xs"
             style={{

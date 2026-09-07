@@ -8,6 +8,8 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'motion/react';
+import { Sun, Moon, Search } from 'lucide-react';
+import CommandPalette from './components/CommandPalette';
 import Sidebar from './components/Sidebar';
 import AlertBanner from './components/AlertBanner';
 import LatencyChart from './components/LatencyChart';
@@ -15,6 +17,8 @@ import EventHistory from './components/EventHistory';
 import ChatAssistant from './components/ChatAssistant';
 import ProviderPanel from './components/ProviderPanel';
 import AuditTrail from './components/AuditTrail';
+import SystemStats from './components/SystemStats';
+import SecurityAutoGenerator from './components/SecurityAutoGenerator';
 import Forecast from './components/Forecast';
 import TrafficMap from './components/TrafficMap';
 import TrafficTrendChart from './components/TrafficTrendChart';
@@ -26,8 +30,7 @@ import SmartSilkRouting from './components/SmartSilkRouting';
 import SSLAcceleratorChart from './components/SSLAcceleratorChart';
 import TrafficAnomalyHeatmap from './components/TrafficAnomalyHeatmap';
 import { useVoiceOperations } from './hooks/useVoiceOperations';
-import { 
-  Moon, Sun, Search, Download, TrendingUp, TrendingDown, 
+import { Download, TrendingUp, TrendingDown, 
   Settings, RotateCcw, AlertTriangle, Monitor, Globe, Smartphone, 
   GripHorizontal, Camera, Mic, MicOff, Volume2, Sparkles
 } from 'lucide-react';
@@ -39,8 +42,21 @@ const PROVIDER_GROUPS = {
 };
 
 import GenericStatusChart from './components/GenericStatusChart';
+import EdgeOneSecurityGateway from './components/EdgeOneSecurityGateway';
+import CertificateTransparencyPanel from './components/CertificateTransparencyPanel';
+import ProductionOperationsCenter from './components/ProductionOperationsCenter';
+import CategoryAnalysis from './components/CategoryAnalysis';
+import TransitMeshTopology from './components/TransitMeshTopology';
+import CyberGlowTelemetry from './components/CyberGlowTelemetry';
+import { Menu } from 'lucide-react';
 
 const INITIAL_SECTIONS = [
+  { id: "Production Operations Center", name: "Production Operations Center", status: 'green', trend: 'up' },
+  { id: "Category Analysis", name: "Category Analysis", status: 'green', trend: 'up' },
+  { id: "Transit Mesh Topology", name: "Transit Mesh Topology", status: 'green', trend: 'up' },
+  { id: "Cyber Glow Telemetry", name: "Cyber Glow Telemetry", status: 'green', trend: 'up' },
+  { id: "Tencent Cloud EdgeOne", name: "Tencent Cloud EdgeOne", status: 'green', trend: 'up' },
+  { id: "Certificate Transparency", name: "Certificate Transparency", status: 'green', trend: 'up' },
   { id: "Traffic Anomaly Heatmap", name: "Traffic Anomaly Heatmap", status: 'green', trend: 'up' },
   { id: "Network Traffic Trend", name: "Network Traffic Trend", status: 'green', trend: 'up' },
   { id: "SSL Accelerator", name: "SSL Accelerator", status: 'green', trend: 'up' },
@@ -50,7 +66,6 @@ const INITIAL_SECTIONS = [
   { id: "FTN-AI Integration", name: "FTN-AI Integration", status: 'yellow', trend: 'up' },
   { id: "Auth / RBAC", name: "Auth / RBAC", status: 'green', trend: 'down' },
   { id: "ACME / CFSSL", name: "ACME / CFSSL", status: 'green', trend: 'down' },
-  { id: "Certificate Transparency", name: "Certificate Transparency", status: 'green', trend: 'up' },
   { id: "GitHub Integration", name: "GitHub Integration", status: 'green', trend: 'up' },
   { id: "Provider Intelligence", name: "Provider Intelligence", status: 'green', trend: 'down' },
   { id: "ASN / Prefix Registry", name: "ASN / Prefix Registry", status: 'green', trend: 'up' },
@@ -77,11 +92,29 @@ const SortableSection: React.FC<{ section: any; context: string; key?: any }> = 
     zIndex: isDragging ? 50 : 1
   };
   
-  const isWideChart = section.name === "Traffic Anomaly Heatmap";
+  const isWideChart = section.name === "Production Operations Center" || 
+    section.name === "Category Analysis" || 
+    section.name === "Transit Mesh Topology" || 
+    section.name === "Cyber Glow Telemetry" || 
+    section.name === "Traffic Anomaly Heatmap" || 
+    section.name === "Certificate Transparency" || 
+    section.name === "Tencent Cloud EdgeOne";
+    
   const isChart = isWideChart || section.name === "Traffic Intelligence" || section.name === "Network Traffic Trend" || section.name === "Certificate Health" || section.name === "Smart Silk Routing" || section.name === "SSL Accelerator";
+
+  const hasCustomHeader = section.name === "Production Operations Center" || 
+    section.name === "Category Analysis" || 
+    section.name === "Transit Mesh Topology" || 
+    section.name === "Cyber Glow Telemetry" || 
+    section.name === "Smart Silk Routing" || 
+    section.name === "SSL Accelerator" || 
+    section.name === "Traffic Anomaly Heatmap" || 
+    section.name === "Tencent Cloud EdgeOne" || 
+    section.name === "Certificate Transparency";
 
   return (
     <motion.div 
+      id={`section-${section.id}`}
       ref={setNodeRef} 
       style={style} 
       layout
@@ -89,12 +122,12 @@ const SortableSection: React.FC<{ section: any; context: string; key?: any }> = 
       transition={{ 
         layout: { duration: 0.35, ease: "easeInOut" }
       }}
-      className={`bg-white dark:bg-[#111] flex flex-col p-5 rounded-2xl shadow-sm border dark:border-white/5 border-gray-200 hover:shadow-md transition-shadow relative group ${isWideChart ? 'md:col-span-2 lg:col-span-4' : isChart ? 'md:col-span-2' : ''}`}
+      className={`bg-white dark:bg-[#111] flex flex-col p-4 md:p-5 rounded-2xl shadow-xs border dark:border-white/5 border-gray-200 hover:shadow-md transition-shadow relative group ${isWideChart ? 'md:col-span-2 lg:col-span-4' : isChart ? 'md:col-span-2' : ''}`}
     >
       <div {...attributes} {...listeners} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 z-10 p-2">
           <GripHorizontal size={18} />
       </div>
-      {section.name !== "Smart Silk Routing" && section.name !== "SSL Accelerator" && section.name !== "Traffic Anomaly Heatmap" && (
+      {!hasCustomHeader && (
         <div className="flex items-center justify-between mb-4 pr-6">
           <div className="flex items-center">
               <div className={`w-2.5 h-2.5 rounded-full ${section.status === 'green' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : section.status === 'yellow' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'} inline-block mr-3`} />
@@ -103,6 +136,12 @@ const SortableSection: React.FC<{ section: any; context: string; key?: any }> = 
           {section.trend === 'up' ? <TrendingUp size={16} className="text-green-500 dark:text-green-400" /> : <TrendingDown size={16} className="text-red-500 dark:text-red-400" />}
         </div>
       )}
+      {section.name === "Production Operations Center" && <ProductionOperationsCenter />}
+      {section.name === "Category Analysis" && <CategoryAnalysis />}
+      {section.name === "Transit Mesh Topology" && <TransitMeshTopology />}
+      {section.name === "Cyber Glow Telemetry" && <CyberGlowTelemetry />}
+      {section.name === "Tencent Cloud EdgeOne" && <EdgeOneSecurityGateway />}
+      {section.name === "Certificate Transparency" && <CertificateTransparencyPanel />}
       {section.name === "Traffic Anomaly Heatmap" && <TrafficAnomalyHeatmap />}
       {section.name === "Traffic Intelligence" && <LatencyChart context={context} />}
       {section.name === "Network Traffic Trend" && <TrafficTrendChart context={context} />}
@@ -117,9 +156,39 @@ const SortableSection: React.FC<{ section: any; context: string; key?: any }> = 
 };
 
 export default function App() {
+  const [isDark, setIsDark] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = !isDark;
+    setIsDark(newTheme);
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark');
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            setIsPaletteOpen(true);
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   const [sections, setSections] = useState(INITIAL_SECTIONS);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [activeTab, setActiveTab] = useState('History');
+  const [activeTab, setActiveTab] = useState('Traffic Map');
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
@@ -258,44 +327,195 @@ export default function App() {
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''} font-sans antialiased text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-[#0a0a0a] min-h-screen flex selection:bg-blue-500/30`}>
-      <Sidebar />
+      <Sidebar 
+        activeSection={activeSection}
+        onSelectSection={(sec) => {
+          setActiveSection(sec);
+          if (sec === 'traffic-map') {
+            setActiveTab('Traffic Map');
+          }
+          const elementMap: Record<string, string> = {
+            'dashboard': 'main-header',
+            'production-center': 'section-Production Operations Center',
+            'category-analysis': 'section-Category Analysis',
+            'transit-topology': 'section-Transit Mesh Topology',
+            'cyber-telemetry': 'section-Cyber Glow Telemetry',
+            'edgeone': 'section-Tencent Cloud EdgeOne',
+            'cert-transparency': 'section-Certificate Transparency',
+            'traffic-map': 'section-traffic-map-tab',
+            'silk-routing': 'section-Smart Silk Routing',
+            'anomaly-heatmap': 'section-Traffic Anomaly Heatmap',
+            'audit-trail': 'audit-trail-section'
+          };
+          const targetId = elementMap[sec];
+          if (targetId) {
+            const el = document.getElementById(targetId);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+      />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {!isConnected && (
-          <div className="bg-amber-500/10 text-amber-500 border-b border-amber-500/20 p-3 text-center text-sm font-medium flex items-center justify-center gap-2">
-            <AlertTriangle size={16} /> Connection lost, data might be stale.
+          <div className="bg-amber-500/10 text-amber-500 border-b border-amber-500/20 px-3 py-1.5 text-center text-xs font-medium flex items-center justify-center gap-2">
+            <AlertTriangle size={14} /> Connection lost, data might be stale.
           </div>
         )}
         {alert && (
-          <div className="bg-red-500/10 text-red-500 border-b border-red-500/20 p-3 text-center text-sm font-bold flex justify-center items-center gap-2 animate-pulse">
-            <AlertTriangle size={16}/> {alert}
+          <div className="bg-red-500/10 text-red-500 border-b border-red-500/20 px-3 py-1.5 text-center text-xs font-bold flex justify-center items-center gap-2 animate-pulse">
+            <AlertTriangle size={14}/> {alert}
           </div>
         )}
         <AlertBanner />
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10">
-          <div className="max-w-7xl mx-auto space-y-8">
-            <header className={`flex flex-col md:flex-row md:justify-between md:items-center gap-4 p-6 rounded-2xl border ${isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-gray-200'} shadow-sm transition-all duration-300 ${isLive ? 'ring-2 ring-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : ''}`}>
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight">FTN <span className="text-blue-500">CertControl</span></h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Global Infrastructure & Certificate Intelligence</p>
+        <main className="flex-1 overflow-y-auto p-3 md:p-5 lg:p-6">
+          <div className="max-w-7xl mx-auto space-y-4 md:space-y-5">
+            <SecurityAutoGenerator />
+            <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+            
+            {/* Ultra-Compact High-Density Enterprise Header */}
+            <header id="main-header" className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border ${isDarkMode ? 'bg-[#111]/90 border-white/10' : 'bg-white border-gray-200'} backdrop-blur-md shadow-xs transition-all duration-300 ${isLive ? 'ring-1 ring-blue-500/40' : ''}`}>
+              {/* Left: Brand & Status */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="p-1 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 transition-colors md:hidden text-gray-700 dark:text-gray-200 shrink-0"
+                  title="Toggle Sidebar Navigation"
+                >
+                  <Menu size={16} />
+                </button>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <div className="flex items-baseline gap-1.5">
+                    <h1 className="text-sm md:text-base font-black tracking-tight whitespace-nowrap">FTN <span className="text-blue-500 font-bold">CertControl</span></h1>
+                    <span className="hidden xl:inline px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-mono border border-blue-500/20">EdgeOne RFC-6962</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                  <select value={deviceContext} onChange={e => setDeviceContext(e.target.value)} className="appearance-none pl-9 pr-8 py-2 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                      <option>Global</option>
-                      <option>Regional PoP</option>
-                      <option>Local Device</option>
+
+              {/* Center: Context & Fast Search */}
+              <div className="flex items-center gap-2">
+                <div className="relative hidden sm:block">
+                  <Globe className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={11} />
+                  <select 
+                    value={deviceContext} 
+                    onChange={e => setDeviceContext(e.target.value)} 
+                    className="appearance-none pl-6 pr-5 py-1 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-[11px] font-medium focus:outline-none cursor-pointer"
+                  >
+                    <option>Global</option>
+                    <option>Regional PoP</option>
+                    <option>Local Device</option>
                   </select>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={exportSnapshot} className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-xl text-sm font-semibold transition-colors shadow-sm" title="Snapshot System Configuration"><Camera size={16} /> <span className="hidden md:inline">Snapshot Config</span></button>
-                  <button onClick={() => setShowSettings(true)} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Settings"><Settings size={18} /></button>
-                  <button onClick={exportReport} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Export Report"><Download size={18} /></button>
-                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#222] rounded-xl transition-colors" title="Toggle Theme">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
-                </div>
+
+                <button 
+                  onClick={() => setIsPaletteOpen(true)} 
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors text-xs"
+                  title="Search commands (⌘K)"
+                >
+                  <Search size={13} />
+                  <span className="hidden md:inline text-[11px]">Search</span>
+                  <kbd className="hidden lg:inline text-[9px] bg-white dark:bg-black/50 px-1 py-0.2 rounded border border-gray-300 dark:border-white/10 font-mono">⌘K</kbd>
+                </button>
+              </div>
+
+              {/* Right: Integrated Actions & Voice Toggle */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button 
+                  onClick={fetchHealthData} 
+                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" 
+                  title="Reload Telemetry Metrics"
+                >
+                  <RotateCcw size={14} />
+                </button>
+
+                <button
+                  onClick={voiceOps.toggleListening}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all border ${
+                    voiceOps.isListening
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-[0_0_10px_rgba(244,63,94,0.4)] animate-pulse'
+                      : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-100'
+                  }`}
+                  title="Voice Operations Engine"
+                >
+                  <Mic size={12} className={voiceOps.isListening ? 'animate-bounce' : ''} />
+                  <span className="hidden sm:inline">{voiceOps.isListening ? 'Listening' : 'Voice'}</span>
+                </button>
+
+                <button 
+                  onClick={exportSnapshot} 
+                  className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors" 
+                  title="Take Quick Snapshot"
+                >
+                  <Camera size={14} />
+                </button>
+
+                <button 
+                  onClick={exportReport} 
+                  className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] rounded-lg transition-colors" 
+                  title="Export System Audit Report"
+                >
+                  <Download size={14} />
+                </button>
+
+                <button 
+                  onClick={() => setShowSettings(true)} 
+                  className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] rounded-lg transition-colors" 
+                  title="Telemetry & Polling Settings"
+                >
+                  <Settings size={14} />
+                </button>
+
+                <button 
+                  onClick={toggleTheme} 
+                  className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] rounded-lg transition-colors" 
+                  title="Toggle Light/Dark Theme"
+                >
+                  {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} />}
+                </button>
               </div>
             </header>
+
+            {/* Voice Feedback Banner (minimal slim overlay if active) */}
+            <AnimatePresence>
+              {(voiceOps.isListening || voiceOps.transcript || voiceNotice || voiceOps.error) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="px-3 py-1.5 rounded-lg border bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs flex items-center justify-between gap-3 shadow-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <Volume2 size={13} className="text-indigo-500 shrink-0" />
+                    {voiceOps.error ? (
+                      <span className="text-red-500 font-medium">{voiceOps.error}</span>
+                    ) : (
+                      <span>
+                        <strong className="font-semibold">Voice:</strong>{' '}
+                        {voiceNotice ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{voiceNotice}</span>
+                        ) : voiceOps.transcript ? (
+                          <span className="italic">"{voiceOps.transcript}"</span>
+                        ) : (
+                          <span>Listening... Try saying "reload all", "clear alerts", or "dark mode"</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {voiceOps.lastCommand && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-200/50 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 font-bold uppercase">
+                      {voiceOps.lastCommand}
+                    </span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <SystemStats />
             
             {/* Quick Actions & Voice Operations Control Bar */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/60 dark:bg-[#111]/60 backdrop-blur-md p-3.5 rounded-2xl border border-gray-200/80 dark:border-white/5 shadow-xs">
@@ -469,9 +689,9 @@ export default function App() {
               </div>
             </ErrorBoundary>
 
-            <div className={`p-6 rounded-2xl border shadow-sm ${isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-gray-200'}`}>
+            <div id="section-traffic-map-tab" className={`p-6 rounded-2xl border shadow-sm ${isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-gray-200'}`}>
                 <div className="flex gap-6 border-b border-gray-200 dark:border-white/10 mb-6">
-                    {['History', 'Forecast', 'Traffic Map'].map(tab => (
+                    {['Traffic Map', 'History', 'Forecast'].map(tab => (
                       <button 
                         key={tab} 
                         onClick={() => setActiveTab(tab)} 
@@ -489,7 +709,9 @@ export default function App() {
                 </div>
             </div>
             
-            <AuditTrail />
+            <div id="audit-trail-section">
+              <AuditTrail />
+            </div>
           </div>
         </main>
       </div>

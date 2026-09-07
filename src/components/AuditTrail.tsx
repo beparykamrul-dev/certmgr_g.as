@@ -3,21 +3,22 @@ import { Download } from 'lucide-react';
 
 export default function AuditTrail() {
   const [logs, setLogs] = useState<any[]>([]);
+  const [section, setSection] = useState('');
 
   useEffect(() => {
-    fetch('/api/audit-logs')
+    fetch(`/api/audit-logs?section=${section}`)
       .then(res => res.json())
       .then(setLogs);
 
     const handleAddLog = (e: any) => {
-      setLogs(prev => [{ id: Date.now(), action: e.detail.action, user: e.detail.user, time: new Date().toLocaleTimeString() }, ...prev]);
+      setLogs(prev => [{ id: Date.now(), action: e.detail.action, user: e.detail.user, time: new Date().toLocaleTimeString(), section: e.detail.section }, ...prev]);
     };
     window.addEventListener('addAuditLog', handleAddLog);
     return () => window.removeEventListener('addAuditLog', handleAddLog);
-  }, []);
+  }, [section]);
 
   const exportCSV = () => {
-    const csv = logs.map(l => `${l.id},${l.action},${l.user},${l.time}`).join('\n');
+    const csv = logs.map(l => `${l.id},${l.action},${l.user},${l.time},${l.section}`).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -33,9 +34,17 @@ export default function AuditTrail() {
           <h3 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Audit Trail</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">System activity and compliance logs</p>
         </div>
-        <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-gray-700 dark:text-gray-300">
-            <Download size={16} /> Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+            <select onChange={(e) => setSection(e.target.value)} className="px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-xl text-sm text-gray-700 dark:text-gray-300 border-none outline-none">
+                <option value="">All Sections</option>
+                <option value="Auth">Auth</option>
+                <option value="Cert">Cert</option>
+                <option value="System">System</option>
+            </select>
+            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-gray-700 dark:text-gray-300">
+                <Download size={16} /> Export CSV
+            </button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
