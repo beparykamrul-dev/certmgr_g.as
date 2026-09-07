@@ -4,7 +4,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const SortablePath = ({ path, togglePath }: { path: any, togglePath: (id: number) => void }) => {
+const SortablePath: React.FC<{ path: any; togglePath: (id: number) => void; key?: any }> = ({ path, togglePath }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: path.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
 

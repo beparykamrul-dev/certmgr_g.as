@@ -242,6 +242,86 @@ async function startServer() {
     ]);
   });
 
+  app.get("/api/throughput-history", (req, res) => {
+    const now = Date.now();
+    const data = [];
+    const baseLoad = 420; // Gbps
+    for (let i = 24; i >= 0; i--) {
+      const time = new Date(now - i * 3600 * 1000);
+      // Realistic diurnal curve + upward growth trend + noise
+      const hourOfDay = time.getHours();
+      const diurnal = Math.sin((hourOfDay - 6) * (Math.PI / 12)) * 120;
+      const trendGrowth = (24 - i) * 3.8; // gradual 3.8 Gbps/hr growth
+      const noise = (Math.sin(i * 1.7) * 22) + (Math.cos(i * 3.1) * 15);
+      const total = Math.max(150, Math.round(baseLoad + diurnal + trendGrowth + noise));
+      const ingress = Math.round(total * 0.54);
+      const egress = Math.round(total * 0.31);
+      const silk = total - ingress - egress;
+
+      data.push({
+        step: 24 - i, // 0..24
+        timestamp: time.toISOString(),
+        time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        throughput: total,
+        ingress,
+        egress,
+        silk
+      });
+    }
+    res.json(data);
+  });
+
+  app.get("/api/traffic-anomalies", (req, res) => {
+    const providers = [
+      "Google", "AWS", "Cloudflare", "Akamai", 
+      "Meta", "Netflix", "EdgeNext", "TikTok", 
+      "Microsoft Azure", "Fastly"
+    ];
+    const timeSlots = ["-60m", "-50m", "-40m", "-30m", "-20m", "-10m", "Now"];
+    
+    // Seeded pseudo-random variations with controlled spikes/drops
+    const matrix: any[] = [];
+    providers.forEach((provider, pIdx) => {
+      let baseline = 180 + (pIdx * 45);
+      timeSlots.forEach((slot, tIdx) => {
+        let deviation = Math.sin((pIdx + 1) * 1.5 + (tIdx + 1) * 0.8) * 18;
+        
+        // Injected known operational anomalies
+        if (provider === "Cloudflare" && (slot === "-20m" || slot === "-10m" || slot === "Now")) {
+          deviation += 54; // Severe spike
+        } else if (provider === "AWS" && slot === "-30m") {
+          deviation += 48; // Transient spike
+        } else if (provider === "Netflix" && (slot === "-40m" || slot === "-30m")) {
+          deviation -= 42; // Cache offload drop
+        } else if (provider === "Meta" && slot === "Now") {
+          deviation += 36; // Evening peak spike
+        } else if (provider === "EdgeNext" && slot === "-10m") {
+          deviation -= 38; // ISP peering drop
+        }
+
+        const deviationPct = Math.round(deviation);
+        const currentGbps = Math.max(20, Math.round(baseline * (1 + deviationPct / 100)));
+        const status = deviationPct >= 30 ? 'spike' : deviationPct <= -25 ? 'drop' : 'normal';
+
+        matrix.push({
+          provider,
+          time: slot,
+          deviationPct,
+          baselineGbps: baseline,
+          currentGbps,
+          status
+        });
+      });
+    });
+
+    res.json({
+      providers,
+      timeSlots,
+      data: matrix,
+      lastUpdated: new Date().toISOString()
+    });
+  });
+
   app.get("/api/export-report", (req, res) => {
     const report = { timestamp: new Date().toISOString(), status: "summary", certificates: "ok", traffic: "normal" };
     res.setHeader('Content-Type', 'application/json');

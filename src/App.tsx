@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from './components/Sidebar';
 import AlertBanner from './components/AlertBanner';
 import LatencyChart from './components/LatencyChart';
@@ -23,7 +24,13 @@ import SmartRoutingModal from './components/SmartRoutingModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import SmartSilkRouting from './components/SmartSilkRouting';
 import SSLAcceleratorChart from './components/SSLAcceleratorChart';
-import { Moon, Sun, Search, Download, TrendingUp, TrendingDown, Settings, RotateCcw, AlertTriangle, Monitor, Globe, Smartphone, GripHorizontal, Camera } from 'lucide-react';
+import TrafficAnomalyHeatmap from './components/TrafficAnomalyHeatmap';
+import { useVoiceOperations } from './hooks/useVoiceOperations';
+import { 
+  Moon, Sun, Search, Download, TrendingUp, TrendingDown, 
+  Settings, RotateCcw, AlertTriangle, Monitor, Globe, Smartphone, 
+  GripHorizontal, Camera, Mic, MicOff, Volume2, Sparkles
+} from 'lucide-react';
 
 const PROVIDER_GROUPS = {
   "Cloud": ["Google", "AWS", "Cloudflare", "Tencent Cloud", "Alibaba Cloud", "Oracle Cloud", "IBM Cloud", "Microsoft Azure"],
@@ -34,6 +41,7 @@ const PROVIDER_GROUPS = {
 import GenericStatusChart from './components/GenericStatusChart';
 
 const INITIAL_SECTIONS = [
+  { id: "Traffic Anomaly Heatmap", name: "Traffic Anomaly Heatmap", status: 'green', trend: 'up' },
   { id: "Network Traffic Trend", name: "Network Traffic Trend", status: 'green', trend: 'up' },
   { id: "SSL Accelerator", name: "SSL Accelerator", status: 'green', trend: 'up' },
   { id: "Traffic Intelligence", name: "Traffic Intelligence", status: 'green', trend: 'up' },
@@ -61,18 +69,32 @@ const INITIAL_SECTIONS = [
   { id: "Tests", name: "Tests", status: 'green', trend: 'down' }
 ];
 
-const SortableSection = ({ section, context }: { section: any, context: string }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+const SortableSection: React.FC<{ section: any; context: string; key?: any }> = ({ section, context }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
+  const style = { 
+    transform: CSS.Translate.toString(transform), 
+    transition: transition || undefined,
+    zIndex: isDragging ? 50 : 1
+  };
   
-  const isChart = section.name === "Traffic Intelligence" || section.name === "Network Traffic Trend" || section.name === "Certificate Health" || section.name === "Smart Silk Routing" || section.name === "SSL Accelerator";
+  const isWideChart = section.name === "Traffic Anomaly Heatmap";
+  const isChart = isWideChart || section.name === "Traffic Intelligence" || section.name === "Network Traffic Trend" || section.name === "Certificate Health" || section.name === "Smart Silk Routing" || section.name === "SSL Accelerator";
 
   return (
-    <div ref={setNodeRef} style={style} className={`bg-white dark:bg-[#111] flex flex-col p-5 rounded-2xl shadow-sm border dark:border-white/5 border-gray-200 hover:shadow-md transition-shadow relative group ${isChart ? 'md:col-span-2' : ''}`}>
+    <motion.div 
+      ref={setNodeRef} 
+      style={style} 
+      layout
+      layoutId={section.id}
+      transition={{ 
+        layout: { duration: 0.35, ease: "easeInOut" }
+      }}
+      className={`bg-white dark:bg-[#111] flex flex-col p-5 rounded-2xl shadow-sm border dark:border-white/5 border-gray-200 hover:shadow-md transition-shadow relative group ${isWideChart ? 'md:col-span-2 lg:col-span-4' : isChart ? 'md:col-span-2' : ''}`}
+    >
       <div {...attributes} {...listeners} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 z-10 p-2">
           <GripHorizontal size={18} />
       </div>
-      {section.name !== "Smart Silk Routing" && section.name !== "SSL Accelerator" && (
+      {section.name !== "Smart Silk Routing" && section.name !== "SSL Accelerator" && section.name !== "Traffic Anomaly Heatmap" && (
         <div className="flex items-center justify-between mb-4 pr-6">
           <div className="flex items-center">
               <div className={`w-2.5 h-2.5 rounded-full ${section.status === 'green' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : section.status === 'yellow' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'} inline-block mr-3`} />
@@ -81,6 +103,7 @@ const SortableSection = ({ section, context }: { section: any, context: string }
           {section.trend === 'up' ? <TrendingUp size={16} className="text-green-500 dark:text-green-400" /> : <TrendingDown size={16} className="text-red-500 dark:text-red-400" />}
         </div>
       )}
+      {section.name === "Traffic Anomaly Heatmap" && <TrafficAnomalyHeatmap />}
       {section.name === "Traffic Intelligence" && <LatencyChart context={context} />}
       {section.name === "Network Traffic Trend" && <TrafficTrendChart context={context} />}
       {section.name === "Certificate Health" && <CertStatusChart />}
@@ -89,7 +112,7 @@ const SortableSection = ({ section, context }: { section: any, context: string }
       {!isChart && (
         <GenericStatusChart name={section.name} status={section.status} trend={section.trend} />
       )}
-    </div>
+    </motion.div>
   );
 };
 
@@ -109,6 +132,68 @@ export default function App() {
   const [, setPollInterval] = useState(5000);
   const [routingSuggestion, setRoutingSuggestion] = useState<{provider: string, health: number} | null>(null);
   const [ignoredSuggestions, setIgnoredSuggestions] = useState<string[]>([]);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
+
+  const fetchHealthData = () => {
+    fetch('/api/health-check').then(res => res.json()).then(data => {
+      setProviderHealth(data);
+      setHealthCount(prev => {
+        const next = { ...prev };
+        data.forEach((h: any) => {
+          if (h.health < 75) next[h.name] = (next[h.name] || 0) + 1;
+          else next[h.name] = 0;
+        });
+        return next;
+      });
+    });
+    fetch('/api/network-status').then(res => res.json()).then(data => setIsConnected(data.connected)).catch(() => setIsConnected(false));
+    window.dispatchEvent(new CustomEvent('addAuditLog', { detail: { action: 'Full System Reload Executed', user: 'Voice/Admin' } }));
+  };
+
+  const exportSnapshot = () => {
+    const snapshot = {
+      timestamp: new Date().toISOString(),
+      signature: `SHA256:${Math.random().toString(36).substring(2, 15)}`,
+      environment: "FTN-CertControl-Production",
+      compliance: "SOC2/ISO27001",
+      modules: sections,
+      activeProviders: selectedProviders,
+      deviceContext: deviceContext
+    };
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FTN_CertControl_Snapshot_${Date.now()}.json`;
+    a.click();
+    window.dispatchEvent(new CustomEvent('addAuditLog', { detail: { action: 'Configuration Snapshot Exported', user: 'admin' } }));
+    setAlert('System Configuration Snapshot downloaded securely.');
+    setTimeout(() => setAlert(null), 3000);
+  };
+
+  const voiceOps = useVoiceOperations({
+    onReloadAll: () => {
+      fetchHealthData();
+      setAlert("Voice Action: Reloaded all systems & monitoring metrics");
+      setTimeout(() => setAlert(null), 3500);
+    },
+    onClearAlerts: () => {
+      setAlert(null);
+    },
+    onSnapshotConfig: () => {
+      exportSnapshot();
+    },
+    onToggleTheme: () => {
+      setIsDarkMode(prev => !prev);
+    },
+    onToggleSettings: () => {
+      setShowSettings(prev => !prev);
+    },
+    onFeedback: (msg) => {
+      setVoiceNotice(msg);
+      setTimeout(() => setVoiceNotice(null), 4000);
+    }
+  });
 
   useEffect(() => {
     fetch('/api/network-status').then(res => res.json()).then(data => setIsConnected(data.connected)).catch(() => setIsConnected(false));
@@ -161,33 +246,14 @@ export default function App() {
   };
 
   const exportReport = () => window.location.href = '/api/export-report';
-  const exportSnapshot = () => {
-    const snapshot = {
-      timestamp: new Date().toISOString(),
-      signature: `SHA256:${Math.random().toString(36).substring(2, 15)}`,
-      environment: "FTN-CertControl-Production",
-      compliance: "SOC2/ISO27001",
-      modules: sections,
-      activeProviders: selectedProviders,
-      deviceContext: deviceContext
-    };
-    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `FTN_CertControl_Snapshot_${Date.now()}.json`;
-    a.click();
-    window.dispatchEvent(new CustomEvent('addAuditLog', { detail: { action: 'Configuration Snapshot Exported', user: 'admin' } }));
-    setAlert('System Configuration Snapshot downloaded securely.');
-    setTimeout(() => setAlert(null), 3000);
-  };
   const performBulkAction = async (action: string) => {
     await fetch('/api/bulk-action', { 
       method: 'POST', 
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ action, providers: selectedProviders }) 
     });
-    alert(`${action} performed on ${selectedProviders.length} providers`);
+    setAlert(`${action} performed on ${selectedProviders.length} providers`);
+    setTimeout(() => setAlert(null), 3000);
   };
 
   return (
@@ -231,10 +297,115 @@ export default function App() {
               </div>
             </header>
             
-            <div className="flex flex-wrap gap-3 items-center">
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-xl text-sm font-semibold transition-colors"><RotateCcw size={16}/> Reload All</button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-xl text-sm font-semibold transition-colors"><AlertTriangle size={16}/> Clear Alerts</button>
+            {/* Quick Actions & Voice Operations Control Bar */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/60 dark:bg-[#111]/60 backdrop-blur-md p-3.5 rounded-2xl border border-gray-200/80 dark:border-white/5 shadow-xs">
+              <div className="flex flex-wrap gap-2.5 items-center">
+                <button 
+                  onClick={fetchHealthData} 
+                  className="flex items-center gap-2 px-3.5 py-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-xl text-xs md:text-sm font-semibold transition-all shadow-xs"
+                >
+                  <RotateCcw size={15}/> Reload All
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setAlert(null);
+                    setVoiceNotice('Alerts cleared');
+                    setTimeout(() => setVoiceNotice(null), 2500);
+                  }} 
+                  className="flex items-center gap-2 px-3.5 py-2 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-xl text-xs md:text-sm font-semibold transition-all shadow-xs"
+                >
+                  <AlertTriangle size={15}/> Clear Alerts
+                </button>
+
+                <div className="h-4 w-px bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block" />
+
+                {/* Voice Operations Toggle Button */}
+                <button
+                  onClick={voiceOps.toggleListening}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all border shadow-xs ${
+                    voiceOps.isListening
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse'
+                      : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/20'
+                  }`}
+                  title={voiceOps.isSupported ? "Toggle Voice Operations Hook" : "Speech Recognition API"}
+                >
+                  {voiceOps.isListening ? <Mic size={15} className="animate-bounce" /> : <Mic size={15} />}
+                  <span>{voiceOps.isListening ? 'Voice Ops: Listening...' : 'Voice Operations'}</span>
+                  {voiceOps.isListening && (
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                  )}
+                </button>
+              </div>
+
+              {/* Voice Quick Command Hints / Simulators */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-[11px] font-medium mr-1 text-gray-400">Voice Hints:</span>
+                <button 
+                  onClick={() => voiceOps.simulateCommand('reload all')}
+                  className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-medium transition-colors text-[11px]"
+                  title="Simulate voice command 'reload all'"
+                >
+                  "Reload All"
+                </button>
+                <button 
+                  onClick={() => voiceOps.simulateCommand('clear alerts')}
+                  className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-medium transition-colors text-[11px]"
+                  title="Simulate voice command 'clear alerts'"
+                >
+                  "Clear Alerts"
+                </button>
+                <button 
+                  onClick={() => voiceOps.simulateCommand('snapshot configuration')}
+                  className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-medium transition-colors text-[11px]"
+                  title="Simulate voice command 'snapshot configuration'"
+                >
+                  "Snapshot Config"
+                </button>
+                <button 
+                  onClick={() => voiceOps.simulateCommand('toggle theme')}
+                  className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-medium transition-colors text-[11px]"
+                  title="Simulate voice command 'toggle theme'"
+                >
+                  "Dark Mode"
+                </button>
+              </div>
             </div>
+
+            {/* Voice Feedback Banner */}
+            <AnimatePresence>
+              {(voiceOps.isListening || voiceOps.transcript || voiceNotice || voiceOps.error) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="px-4 py-2.5 rounded-xl border bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs flex items-center justify-between gap-3 shadow-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <Volume2 size={15} className="text-indigo-500 shrink-0" />
+                    {voiceOps.error ? (
+                      <span className="text-red-500 font-medium">{voiceOps.error}</span>
+                    ) : (
+                      <span>
+                        <strong className="font-semibold">Voice Engine:</strong>{' '}
+                        {voiceNotice ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{voiceNotice}</span>
+                        ) : voiceOps.transcript ? (
+                          <span className="italic">"{voiceOps.transcript}"</span>
+                        ) : (
+                          <span>Listening for voice commands. Speak clearly into your microphone...</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {voiceOps.lastCommand && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-200/50 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 font-bold uppercase">
+                      Last: {voiceOps.lastCommand}
+                    </span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={sections.map(s => s.id)} strategy={rectSortingStrategy}>
