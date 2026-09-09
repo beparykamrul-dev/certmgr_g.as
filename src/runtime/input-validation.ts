@@ -1,0 +1,2 @@
+export function requiredText(value: unknown, field: string, max = 256): string { if (typeof value !== 'string') throw new Error(`${field}_required`); const text = value.trim(); if (!text || text.length > max) throw new Error(`${field}_invalid`); return text; }
+export function boundedInteger(value: unknown, field: string, min: number, max: number): number { if (!Number.isInteger(value) || Number(value) < min || Number(value) > max) throw new Error(`${field}_invalid`); return Number(value); }
