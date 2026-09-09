@@ -1,80 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
+import NotConfiguredState from './NotConfiguredState';
 
 export default function AuditTrail() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [section, setSection] = useState('');
-
-  useEffect(() => {
-    fetch(`/api/audit-logs?section=${section}`)
-      .then(res => res.json())
-      .then(setLogs);
-
-    const handleAddLog = (e: any) => {
-      setLogs(prev => [{ id: Date.now(), action: e.detail.action, user: e.detail.user, time: new Date().toLocaleTimeString(), section: e.detail.section }, ...prev]);
-    };
-    window.addEventListener('addAuditLog', handleAddLog);
-    return () => window.removeEventListener('addAuditLog', handleAddLog);
-  }, [section]);
-
-  const exportCSV = () => {
-    const csv = logs.map(l => `${l.id},${l.action},${l.user},${l.time},${l.section}`).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'audit.csv';
-    a.click();
-  };
-
-  return (
-    <div className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm mt-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h3 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Audit Trail</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">System activity and compliance logs</p>
-        </div>
-        <div className="flex items-center gap-2">
-            <select onChange={(e) => setSection(e.target.value)} className="px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-xl text-sm text-gray-700 dark:text-gray-300 border-none outline-none">
-                <option value="">All Sections</option>
-                <option value="Auth">Auth</option>
-                <option value="Cert">Cert</option>
-                <option value="System">System</option>
-            </select>
-            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-xl text-sm font-medium transition-colors text-gray-700 dark:text-gray-300">
-                <Download size={16} /> Export CSV
-            </button>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 font-medium">
-                <th className="pb-3 pr-4 font-medium">Action</th>
-                <th className="pb-3 px-4 font-medium">User</th>
-                <th className="pb-3 pl-4 font-medium text-right">Time</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-            {logs.map(log => (
-              <tr key={log.id} className="group hover:bg-gray-50 dark:hover:bg-white-[0.02] transition-colors">
-                <td className="py-4 pr-4 text-gray-900 dark:text-gray-200 font-medium">{log.action}</td>
-                <td className="py-4 px-4 text-gray-500 dark:text-gray-400">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a] text-xs font-medium">
-                        {log.user}
-                    </span>
-                </td>
-                <td className="py-4 pl-4 text-gray-400 dark:text-gray-500 text-right font-mono text-xs">{log.time}</td>
-              </tr>
-            ))}
-            {logs.length === 0 && (
-                <tr>
-                    <td colSpan={3} className="py-8 text-center text-gray-500 dark:text-gray-400">No logs found</td>
-                </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  const [logs, setLogs] = useState<any[] | null>(null); const [section, setSection] = useState('');
+  useEffect(() => { let active = true; fetch(`/api/audit-logs?section=${encodeURIComponent(section)}`, { headers: { Accept: 'application/json' } }).then(async r => ({ ok: r.ok, body: await r.json() })).then(({ ok, body }) => active && setLogs(ok && Array.isArray(body) ? body : [])).catch(() => active && setLogs([])); return () => { active = false; }; }, [section]);
+  const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const exportCSV = () => { if (!logs?.length) return; const rows = [['id','action','user','time','section'], ...logs.map(l => [l.id,l.action,l.user,l.time,l.section])]; const csv = rows.map(r => r.map(csvCell).join(',')).join('\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'audit.csv'; a.click(); URL.revokeObjectURL(url); };
+  return <div className="bg-white dark:bg-[#111] p-6 md:p-8 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm mt-8"><div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"><div><h3 className="text-xl font-bold tracking-tight">Audit Trail</h3><p className="text-sm text-gray-500 mt-1">Server-sourced activity and audit records</p></div><div className="flex items-center gap-2"><select value={section} onChange={e => setSection(e.target.value)} className="px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-xl text-sm"><option value="">All Sections</option><option value="Auth">Auth</option><option value="Cert">Cert</option><option value="System">System</option></select><button disabled={!logs?.length} onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-xl text-sm font-medium disabled:opacity-40"><Download size={16}/> Export CSV</button></div></div>{logs === null ? <p className="text-xs text-gray-400">Loading audit records…</p> : logs.length === 0 ? <NotConfiguredState feature="Audit trail" reason="No live audit records are available." /> : <div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead><tr className="border-b border-gray-200 dark:border-white/10"><th className="pb-3">Action</th><th className="pb-3">User</th><th className="pb-3 text-right">Time</th></tr></thead><tbody>{logs.map(l => <tr key={l.id} className="border-b border-gray-100 dark:border-white/5"><td className="py-4 font-medium">{l.action}</td><td className="py-4 text-gray-500">{l.user}</td><td className="py-4 text-right font-mono text-xs text-gray-400">{l.time}</td></tr>)}</tbody></table></div>}</div>;
 }
