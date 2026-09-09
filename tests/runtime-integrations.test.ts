@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { alertingStatus } from '../src/runtime/alerts';
+import { acmeStatus } from '../src/runtime/acme';
+import { prometheusStatus } from '../src/runtime/prometheus';
+import { githubStatus } from '../src/runtime/github';
+import { certificateLifecycleStatus } from '../src/runtime/certificates';
+import { trafficTelemetryStatus } from '../src/runtime/traffic';
+const env = { ALERTMANAGER_URL: 'http://a', ACME_DIRECTORY_URL: 'https://acme', PROMETHEUS_URL: 'http://p', GITHUB_TOKEN: 'token', TRAFFIC_COLLECTOR_URL: 'http://t' };
+assert.equal(alertingStatus(env).configured, true);
+assert.equal(acmeStatus(env).configured, true);
+assert.equal(prometheusStatus(env).configured, true);
+assert.equal(githubStatus(env).configured, true);
+assert.equal(certificateLifecycleStatus(env).configured, true);
+assert.equal(trafficTelemetryStatus(env).configured, true);
+console.log('runtime-integrations: ok');
