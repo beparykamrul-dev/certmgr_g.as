@@ -1,8 +1,10 @@
 global:
   scrape_interval: 30s
   evaluation_interval: 30s
+
 scrape_configs:
   - job_name: ftn-cert-control
     metrics_path: /api/metrics
     static_configs:
       - targets: ['certmgr-control:3000']
+    scrape_timeout: 10s
