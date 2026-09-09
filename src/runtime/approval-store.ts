@@ -6,6 +6,12 @@ export type ApprovalStore = {
   list(): ApprovalRequest[];
 };
 
+export type AsyncApprovalStore = {
+  put(request: ApprovalRequest): Promise<void>;
+  get(id: string): Promise<ApprovalRequest | undefined>;
+  list(): Promise<ApprovalRequest[]>;
+};
+
 export function createMemoryApprovalStore(): ApprovalStore {
   const records = new Map<string, ApprovalRequest>();
   return {
