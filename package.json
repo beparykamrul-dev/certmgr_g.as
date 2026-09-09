@@ -1,14 +1,14 @@
 {
   "name": "ftn-cert-control",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit",
-    "test": "tsx tests/validation.test.ts && tsx tests/policy.test.ts && tsx tests/runtime-config.test.ts && tsx tests/collector-runtime.test.ts && tsx tests/readiness-runtime.test.ts && tsx tests/no-synthetic-runtime.test.ts && tsx tests/approval-runtime.test.ts"
+    "test": "tsx tests/validation.test.ts && tsx tests/policy.test.ts && tsx tests/runtime-config.test.ts && tsx tests/collector-runtime.test.ts && tsx tests/readiness-runtime.test.ts && tsx tests/no-synthetic-runtime.test.ts && tsx tests/approval-runtime.test.ts && tsx tests/runtime-metrics.test.ts && tsx tests/runtime-storage.test.ts && tsx tests/runtime-integrations.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -28,7 +28,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-simple-maps": "^3.0.0",
-    "recharts": "^3.10.1",
+    "recharts": "^3.10.0",
     "vite": "^6.2.3"
   },
   "devDependencies": {
