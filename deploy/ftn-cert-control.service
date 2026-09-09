@@ -1,0 +1,21 @@
+[Unit]
+Description=FTN Certificate Control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ftn-cert-control
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/ftn-cert-control/.env
+ExecStart=/usr/bin/node /opt/ftn-cert-control/dist/server.cjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ftn-cert-control
+
+[Install]
+WantedBy=multi-user.target
