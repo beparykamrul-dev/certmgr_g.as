@@ -1,0 +1,3 @@
+export function envFlag(name: string, fallback = false): boolean { const value = process.env[name]; return value == null ? fallback : value.toLowerCase() === 'true'; }
+export function envRequired(name: string, minLength = 1): string | undefined { const value = process.env[name]?.trim(); return value && value.length >= minLength ? value : undefined; }
+export const runtimeConfig = Object.freeze({ nodeEnv: process.env.NODE_ENV || 'development', port: Number(process.env.PORT || 3000), trustProxy: envFlag('TRUST_PROXY'), operatorTokenConfigured: Boolean(envRequired('FTN_API_TOKEN', 32)), databaseConfigured: Boolean(envRequired('DATABASE_URL')) });
