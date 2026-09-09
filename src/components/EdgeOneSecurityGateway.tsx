@@ -21,14 +21,12 @@ export default function EdgeOneSecurityGateway() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/edgeone-security');
+      const res = await fetch('/api/edgeone-security', { headers: { Accept: 'application/json' } });
       const body = await res.json();
       setData(body);
     } catch {
       setData({ configured: false, reason: 'EdgeOne API request failed' });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   useEffect(() => {
@@ -39,16 +37,20 @@ export default function EdgeOneSecurityGateway() {
 
   const toggleDefense = async () => {
     const enabled = !Boolean(data?.autoDefenseEnabled);
-    setActionState('approval required');
+    setActionState('Approval required; no change executed yet.');
     try {
       const res = await fetch('/api/edgeone-toggle-defense', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ enabled })
       });
       const body = await res.json();
+      if (!res.ok || body.status === 'approval_required') {
+        setActionState(body.message || 'Approval required; no change executed.');
+        return;
+      }
       setData(prev => ({ ...(prev || {}), ...body }));
-      setActionState(body.status === 'approval_required' ? 'Approval required; no change executed.' : null);
+      setActionState('Change accepted by the configured adapter.');
     } catch {
       setActionState('EdgeOne control request failed.');
     }
@@ -56,7 +58,7 @@ export default function EdgeOneSecurityGateway() {
 
   if (loading && !data) return <div className="p-4 text-xs text-gray-400">Loading EdgeOne adapter state…</div>;
 
-  if (data?.configured === false || !data) {
+  if (data?.configured !== true) {
     return (
       <div className="pt-2 space-y-4">
         <Header onRefresh={load} loading={loading} />
@@ -85,7 +87,7 @@ export default function EdgeOneSecurityGateway() {
 }
 
 function Header({ onRefresh, loading }: { onRefresh: () => void; loading: boolean }) {
-  return <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/5 pb-3"><div><h3 className="text-base font-bold flex items-center gap-2"><Zap size={18} className="text-amber-500" /> Tencent Cloud EdgeOne Security Gateway</h3><p className="text-xs text-gray-500 mt-1">Live EdgeOne security telemetry only; simulation and fabricated metrics are disabled.</p></div><button onClick={onRefresh} disabled={loading} className="p-2 rounded-xl border"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button></div>;
+  return <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/5 pb-3"><div><h3 className="text-base font-bold flex items-center gap-2"><Zap size={18} className="text-amber-500" /> Tencent Cloud EdgeOne Security Gateway</h3><p className="text-xs text-gray-500 mt-1">Live EdgeOne telemetry only. Simulation and fabricated metrics are disabled.</p></div><button onClick={onRefresh} disabled={loading} className="p-2 rounded-xl border"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button></div>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
