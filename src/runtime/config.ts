@@ -7,6 +7,7 @@ export type RuntimeConfig = {
   alertmanagerUrl?: string;
   prometheusUrl?: string;
   acmeDirectoryUrl?: string;
+  trafficCollectorUrl?: string;
 };
 
 export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig {
@@ -21,6 +22,7 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env): Runtime
     alertmanagerUrl: env.ALERTMANAGER_URL?.trim() || undefined,
     prometheusUrl: env.PROMETHEUS_URL?.trim() || undefined,
     acmeDirectoryUrl: env.ACME_DIRECTORY_URL?.trim() || undefined,
+    trafficCollectorUrl: env.TRAFFIC_COLLECTOR_URL?.trim() || undefined,
   };
 }
 
