@@ -20,3 +20,11 @@ export function createMemoryApprovalStore(): ApprovalStore {
     list: () => [...records.values()],
   };
 }
+
+export function createAsyncApprovalStore(store: ApprovalStore): AsyncApprovalStore {
+  return {
+    put: async request => store.put(request),
+    get: async id => store.get(id),
+    list: async () => store.list(),
+  };
+}
