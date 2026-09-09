@@ -1,14 +1,14 @@
 {
   "name": "ftn-cert-control",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.2.4",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit",
-    "test": "tsx tests/validation.test.ts && tsx tests/policy.test.ts && tsx tests/runtime-config.test.ts && tsx tests/collector-runtime.test.ts && tsx tests/readiness-runtime.test.ts && tsx tests/no-synthetic-runtime.test.ts && tsx tests/approval-runtime.test.ts && tsx tests/runtime-metrics.test.ts && tsx tests/runtime-storage.test.ts && tsx tests/runtime-integrations.test.ts && tsx tests/adapters.test.ts && tsx tests/config-validation.test.ts && tsx tests/collector-live.test.ts && tsx tests/readiness-contract.test.ts && tsx tests/telemetry-state.test.ts && tsx tests/api-response.test.ts"
+    "test": "tsx tests/*.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
