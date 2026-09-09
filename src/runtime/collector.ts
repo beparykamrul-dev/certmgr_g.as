@@ -10,7 +10,12 @@ export function getCollectorStatuses(env: NodeJS.ProcessEnv = process.env): Coll
     ['acme', env.ACME_DIRECTORY_URL],
     ['traffic', env.TRAFFIC_COLLECTOR_URL],
   ];
-  return entries.map(([name, value]) => ({ name, configured: configured(value), healthy: null, source: 'runtime-config' }));
+  return entries.map(([name, value]) => ({
+    name,
+    configured: configured(value),
+    healthy: null,
+    source: configured(value) ? 'runtime-config-awaiting-healthcheck' : 'runtime-config',
+  }));
 }
 
 export function configuredCollectorCount(env: NodeJS.ProcessEnv = process.env): number {
