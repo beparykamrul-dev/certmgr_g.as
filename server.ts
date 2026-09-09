@@ -4,7 +4,7 @@ import os from "os";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { loadRuntimeConfig, operatorControlConfigured as isOperatorControlConfigured } from "./src/runtime/config";
-import { configuredCollectorCount, getCollectorStatuses, hasLiveCollector } from "./src/runtime/collector";
+import { configuredCollectorCount, getCollectorStatuses, hasLiveCollector, probeCollectorStatuses, type CollectorStatus } from "./src/runtime/collector";
 import { readiness } from "./src/runtime/health";
 import { unavailable as apiUnavailable } from "./src/runtime/api";
 import { evaluatePrivilegedAction } from "./src/runtime/policy";
@@ -25,6 +25,20 @@ const API_TOKEN = config.apiToken;
 const operatorControlConfigured = isOperatorControlConfigured(config);
 let lastCpuUsage = process.cpuUsage();
 let lastCpuAt = process.hrtime.bigint();
+let collectorSnapshot: CollectorStatus[] = getCollectorStatuses(process.env);
+let collectorProbeAt = 0;
+let collectorProbeInFlight: Promise<void> | null = null;
+
+async function refreshCollectors(force = false): Promise<void> {
+  const now = Date.now();
+  if (!force && now - collectorProbeAt < 30000) return;
+  if (collectorProbeInFlight) return collectorProbeInFlight;
+  collectorProbeInFlight = probeCollectorStatuses(process.env).then(snapshot => {
+    collectorSnapshot = snapshot;
+    collectorProbeAt = Date.now();
+  }).finally(() => { collectorProbeInFlight = null; });
+  await collectorProbeInFlight;
+}
 
 app.disable("x-powered-by");
 app.set("trust proxy", config.trustProxy);
@@ -42,16 +56,14 @@ app.use((_req, res, next) => {
 function requireOperator(req: express.Request, res: express.Response, next: express.NextFunction) {
   if (!operatorControlConfigured) return res.status(503).json({ success: false, error: "operator_control_not_configured" });
   const supplied = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!supplied || supplied.length !== API_TOKEN!.length || !crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(API_TOKEN!))) {
-    return res.status(401).json({ success: false, error: "unauthorized" });
-  }
+  if (!supplied || supplied.length !== API_TOKEN!.length || !crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(API_TOKEN!))) return res.status(401).json({ success: false, error: "unauthorized" });
   next();
 }
 
 function unavailable(feature: string) { return apiUnavailable(feature); }
-function collectorStatuses() { return getCollectorStatuses(process.env); }
-function collectorCount() { return configuredCollectorCount(process.env); }
-function liveCollectorAvailable() { return hasLiveCollector(collectorStatuses()); }
+function collectorStatuses() { return collectorSnapshot; }
+function collectorCount() { return collectorSnapshot.filter(c => c.configured).length; }
+function liveCollectorAvailable() { return hasLiveCollector(collectorSnapshot); }
 
 function cpuPercent() {
   const now = process.hrtime.bigint();
@@ -63,25 +75,17 @@ function cpuPercent() {
   return Math.min(100, Number(((usage.user + usage.system) / elapsedMicros * 100).toFixed(2)));
 }
 
-app.get("/api/health", (_req, res) => res.json({ status: "ok", service: "ftn-cert-control", environment: NODE_ENV, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000), liveCollectorsConfigured: collectorCount(), liveCollectorAvailable: liveCollectorAvailable(), collectors: collectorStatuses() }));
+app.get("/api/health", async (_req, res) => { await refreshCollectors(); res.json({ status: "ok", service: "ftn-cert-control", environment: NODE_ENV, uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000), liveCollectorsConfigured: collectorCount(), liveCollectorAvailable: liveCollectorAvailable(), collectors: collectorStatuses(), collectorProbeAt: collectorProbeAt ? new Date(collectorProbeAt).toISOString() : null }); });
 app.get("/api/livez", (_req, res) => res.json({ status: "ok", service: "ftn-cert-control" }));
-app.get("/api/readyz", (_req, res) => {
-  const result = readiness({ process: true, operatorControl: operatorControlConfigured, liveCollectors: liveCollectorAvailable() });
-  res.status(result.ready ? 200 : 503).json(result);
-});
-app.get("/api/network-status", (_req, res) => { const configuredCount = collectorCount(); const live = liveCollectorAvailable(); res.json({ connected: live, status: live ? "live" : configuredCount > 0 ? "configured-awaiting-health" : "not-configured", liveCollectorsConfigured: configuredCount, source: "runtime-health-boundary" }); });
+app.get("/api/readyz", async (_req, res) => { await refreshCollectors(); const result = readiness({ process: true, operatorControl: operatorControlConfigured, liveCollectors: liveCollectorAvailable() }); res.status(result.ready ? 200 : 503).json(result); });
+app.get("/api/network-status", async (_req, res) => { await refreshCollectors(); const configuredCount = collectorCount(); const live = liveCollectorAvailable(); res.json({ connected: live, status: live ? "live" : configuredCount > 0 ? "configured-but-unhealthy" : "not-configured", liveCollectorsConfigured: configuredCount, source: "live-health-probe", collectors: collectorStatuses() }); });
 
 app.get("/api/alerts", (_req, res) => res.json([]));
 app.get("/api/event-history", (_req, res) => res.json([]));
 app.get("/api/audit-logs", (_req, res) => res.json([]));
-app.post("/api/ai-insights", async (_req, res) => {
-  if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "AI provider is not configured" });
-  return res.status(501).json({ error: "AI execution adapter is not installed; no synthetic insight is returned" });
-});
-
+app.post("/api/ai-insights", async (_req, res) => { if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "AI provider is not configured" }); return res.status(501).json({ error: "AI execution adapter is not installed; no synthetic insight is returned" }); });
 app.get("/api/health-check", (_req, res) => res.json(providers.map(name => ({ name, health: null, status: "unknown", error: null, source: "not-configured" }))));
 app.get("/api/system-stats", (_req, res) => { const mem = process.memoryUsage(); res.json({ cpu_percent: cpuPercent(), memory: { rss_mb: +(mem.rss / 1048576).toFixed(2), heap_used_mb: +(mem.heapUsed / 1048576).toFixed(2), heap_total_mb: +(mem.heapTotal / 1048576).toFixed(2) }, active_connections: null, source: "process", host: os.hostname() }); });
-
 app.post("/api/bulk-action", requireOperator, (_req, res) => { const decision = evaluatePrivilegedAction(); res.status(409).json({ success: false, error: "approval_required", message: decision.reason, approval: { required: decision.approvalRequired, state: "pending" } }); });
 app.get("/api/ct-logs", (_req, res) => res.json({ logs: [], certificates: [], totalTrackedCertificates: 0, rfcStandards: ["RFC 6962", "RFC 9162", "RFC 8659", "RFC 8446", "RFC 6960"], ...unavailable("certificate-transparency") }));
 app.post("/api/ct-issue-test-cert", requireOperator, (_req, res) => res.status(501).json({ success: false, error: "not_implemented", message: "Test certificate issuance is disabled until a real ACME/CT adapter is configured" }));
@@ -99,32 +103,8 @@ app.get("/api/traffic-map-data", (_req, res) => res.json([]));
 app.get("/api/throughput-history", (_req, res) => res.json([]));
 app.get("/api/traffic-anomalies", (_req, res) => res.json({ providers: [], timeSlots: [], data: [], lastUpdated: null, ...unavailable("traffic-anomaly-detection") }));
 
-app.get("/api/metrics", (_req, res) => {
-  const uptime = Math.floor((Date.now() - startedAt) / 1000);
-  const count = collectorCount();
-  const live = liveCollectorAvailable();
-  const body = [
-    "# HELP ftn_cert_control_uptime_seconds Process uptime in seconds",
-    "# TYPE ftn_cert_control_uptime_seconds gauge",
-    `ftn_cert_control_uptime_seconds ${uptime}`,
-    "# HELP ftn_cert_control_provider_count Provider names known to the UI",
-    "# TYPE ftn_cert_control_provider_count gauge",
-    `ftn_cert_control_provider_count ${providers.length}`,
-    "# HELP ftn_cert_control_collectors_configured Number of configured collector endpoints",
-    "# TYPE ftn_cert_control_collectors_configured gauge",
-    `ftn_cert_control_collectors_configured ${count}`,
-    "# HELP ftn_cert_control_live_collector_available Whether at least one collector has a confirmed live health state",
-    "# TYPE ftn_cert_control_live_collector_available gauge",
-    `ftn_cert_control_live_collector_available ${live ? 1 : 0}`,
-    "# HELP ftn_cert_control_operator_control_configured Whether privileged operator control is configured",
-    "# TYPE ftn_cert_control_operator_control_configured gauge",
-    `ftn_cert_control_operator_control_configured ${operatorControlConfigured ? 1 : 0}`
-  ].join("\n") + "\n";
-  res.type("text/plain; version=0.0.4").send(body);
-});
-
-app.get("/api/export-report", (_req, res) => { const count = collectorCount(); res.setHeader("Content-Type", "application/json"); res.setHeader("Content-Disposition", "attachment; filename=ftn-cert-control-report.json"); res.send(JSON.stringify({ timestamp: new Date().toISOString(), service: "ftn-cert-control", status: "live-api", syntheticData: false, liveCollectorsConfigured: count, liveCollectorAvailable: liveCollectorAvailable() }, null, 2)); });
+app.get("/api/metrics", async (_req, res) => { await refreshCollectors(); const uptime = Math.floor((Date.now() - startedAt) / 1000); const count = collectorCount(); const live = liveCollectorAvailable(); const body = ["# HELP ftn_cert_control_uptime_seconds Process uptime in seconds", "# TYPE ftn_cert_control_uptime_seconds gauge", `ftn_cert_control_uptime_seconds ${uptime}`, "# HELP ftn_cert_control_provider_count Provider names known to the UI", "# TYPE ftn_cert_control_provider_count gauge", `ftn_cert_control_provider_count ${providers.length}`, "# HELP ftn_cert_control_collectors_configured Number of configured collector endpoints", "# TYPE ftn_cert_control_collectors_configured gauge", `ftn_cert_control_collectors_configured ${count}`, "# HELP ftn_cert_control_live_collector_available Whether at least one collector has a confirmed live health state", "# TYPE ftn_cert_control_live_collector_available gauge", `ftn_cert_control_live_collector_available ${live ? 1 : 0}`, "# HELP ftn_cert_control_operator_control_configured Whether privileged operator control is configured", "# TYPE ftn_cert_control_operator_control_configured gauge", `ftn_cert_control_operator_control_configured ${operatorControlConfigured ? 1 : 0}`].join("\n") + "\n"; res.type("text/plain; version=0.0.4").send(body); });
+app.get("/api/export-report", async (_req, res) => { await refreshCollectors(); const count = collectorCount(); res.setHeader("Content-Type", "application/json"); res.setHeader("Content-Disposition", "attachment; filename=ftn-cert-control-report.json"); res.send(JSON.stringify({ timestamp: new Date().toISOString(), service: "ftn-cert-control", status: "live-api", syntheticData: false, liveCollectorsConfigured: count, liveCollectorAvailable: liveCollectorAvailable(), collectors: collectorStatuses() }, null, 2)); });
 
 if (NODE_ENV !== "production") { const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" }); app.use(vite.middlewares); } else { const distPath = path.join(process.cwd(), "dist"); app.use(express.static(distPath, { index: "index.html" })); app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html"))); }
-
 app.listen(PORT, "0.0.0.0", () => console.log(`ftn-cert-control listening on :${PORT}`));
