@@ -1,0 +1,1 @@
+export function prometheusGauge(name: string, help: string, value: number | null): string { if (value === null || !Number.isFinite(value)) return ''; return `# HELP ${name} ${help}\n# TYPE ${name} gauge\n${name} ${value}\n`; }
