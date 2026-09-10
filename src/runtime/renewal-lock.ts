@@ -1,0 +1,2 @@
+export type RenewalLock = { acquire(subject: string): Promise<boolean>; release(subject: string): Promise<void> };
+export function createMemoryRenewalLock(): RenewalLock { const held = new Set<string>(); return { acquire: async subject => { const key = subject.trim().toLowerCase(); if (!key || held.has(key)) return false; held.add(key); return true; }, release: async subject => { held.delete(subject.trim().toLowerCase()); } }; }
