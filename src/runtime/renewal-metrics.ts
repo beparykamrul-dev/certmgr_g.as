@@ -1,0 +1,2 @@
+export type RenewalCounters = { planned: number; approved: number; succeeded: number; failed: number };
+export function renewalMetricLines(c: RenewalCounters): string { return ['# TYPE ftn_cert_renewals_total counter', `ftn_cert_renewals_total{state="planned"} ${c.planned}`, `ftn_cert_renewals_total{state="approved"} ${c.approved}`, `ftn_cert_renewals_total{state="succeeded"} ${c.succeeded}`, `ftn_cert_renewals_total{state="failed"} ${c.failed}`].join('\n') + '\n'; }
