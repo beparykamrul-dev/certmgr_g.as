@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { renewalNotification } from '../src/runtime/renewal-notification'; test('renewal notification has deterministic state message', () => assert.equal(renewalNotification('example.com','approval_required').state,'approval_required'));
