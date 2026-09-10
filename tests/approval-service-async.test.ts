@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
-import { requestApprovalAsync, approveRequestAsync } from '../src/runtime/approval-service';
-import { createMemoryApprovalStore } from '../src/runtime/approval-store';
+import { requestApprovalAsync, approveRequestAsync } from '../src/runtime/approval-service-async';
+import { createMemoryApprovalStore, type AsyncApprovalStore } from '../src/runtime/approval-store';
 
 const records = createMemoryApprovalStore();
-const store = {
-  put: async (request: Parameters<typeof records.put>[0]) => records.put(request),
-  get: async (id: string) => records.get(id),
+const store: AsyncApprovalStore = {
+  put: async request => records.put(request),
+  get: async id => records.get(id),
   list: async () => records.list(),
 };
+
 const request = await requestApprovalAsync(store, 'renew', 'example.com', 'operator');
 assert.equal(request.state, 'pending');
 const approved = await approveRequestAsync(store, request.id);
