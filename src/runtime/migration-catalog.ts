@@ -9,4 +9,8 @@ export const MIGRATIONS: readonly Migration[] = [
     version: '002_certificate_inventory',
     sql: `CREATE TABLE IF NOT EXISTS certificate_inventory (subject TEXT PRIMARY KEY, issuer TEXT, expires_at TIMESTAMPTZ NOT NULL, source TEXT NOT NULL, observed_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()); CREATE INDEX IF NOT EXISTS certificate_inventory_expires_idx ON certificate_inventory(expires_at);`,
   },
+  {
+    version: '003_audit_requested_outcome',
+    sql: `ALTER TABLE audit_records DROP CONSTRAINT IF EXISTS audit_records_outcome_check; ALTER TABLE audit_records ADD CONSTRAINT audit_records_outcome_check CHECK (outcome IN ('requested','approved','denied','executed','failed'));`,
+  },
 ];
