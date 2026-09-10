@@ -1,3 +1,4 @@
+import type { ApprovalRequest } from './approval-contract';
 import type { AsyncApprovalStore } from './approval-store';
 import { requestApprovalAsync, canExecuteApproval } from './approval-service-async';
 
@@ -5,7 +6,7 @@ export async function requestRenewalApproval(
   store: AsyncApprovalStore,
   subject: string,
   requestedBy: string,
-): Promise<ReturnType<typeof requestApprovalAsync> extends Promise<infer T> ? T : never> {
+): Promise<ApprovalRequest> {
   return requestApprovalAsync(store, 'certificate.renew', subject, requestedBy);
 }
 
