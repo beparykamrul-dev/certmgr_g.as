@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { isTerminalRenewalState } from '../src/runtime/renewal-state'; test('renewal terminal states are explicit', () => { assert.equal(isTerminalRenewalState('verified'),true); assert.equal(isTerminalRenewalState('executing'),false); });
