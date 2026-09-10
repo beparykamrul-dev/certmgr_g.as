@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { renewalReady } from '../src/runtime/renewal-readiness'; test('renewal readiness requires approval and adapter', () => { assert.equal(renewalReady({ approval:false, adapter:true }),false); assert.equal(renewalReady({ approval:true, adapter:true }),true); });
