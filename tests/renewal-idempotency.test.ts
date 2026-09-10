@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { renewalOperationId } from '../src/runtime/renewal-idempotency'; test('renewal operation id is deterministic', () => assert.equal(renewalOperationId('Example.COM','a'), renewalOperationId(' example.com ','a')));
