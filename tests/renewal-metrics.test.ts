@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { renewalMetricLines } from '../src/runtime/renewal-metrics'; test('renewal metrics are Prometheus compatible', () => assert.match(renewalMetricLines({planned:1,approved:2,succeeded:3,failed:4}), /ftn_cert_renewals_total\{state="succeeded"\} 3/));
