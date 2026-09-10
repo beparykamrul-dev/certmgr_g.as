@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { certificateFingerprint } from '../src/runtime/certificate-fingerprint'; test('fingerprint is deterministic', () => assert.equal(certificateFingerprint('cert'), certificateFingerprint('cert')));
