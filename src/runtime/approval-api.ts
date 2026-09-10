@@ -1,10 +1,11 @@
 import type { ApprovalRequest } from './approval-contract';
-import { approveRequest, requestApproval } from './approval-service';
-import type { ApprovalStore } from './approval-store';
+import { approveRequestAsync, requestApprovalAsync } from './approval-service-async';
+import type { AsyncApprovalStore } from './approval-store';
 
-export function createApproval(store: ApprovalStore, action: string, target: string, requestedBy: string): ApprovalRequest {
-  return requestApproval(store, action, target, requestedBy);
+export function createApproval(store: AsyncApprovalStore, action: string, target: string, requestedBy: string): Promise<ApprovalRequest> {
+  return requestApprovalAsync(store, action, target, requestedBy);
 }
-export function approveApproval(store: ApprovalStore, id: string): ApprovalRequest | undefined {
-  return approveRequest(store, id);
+
+export function approveApproval(store: AsyncApprovalStore, id: string): Promise<ApprovalRequest | undefined> {
+  return approveRequestAsync(store, id);
 }
