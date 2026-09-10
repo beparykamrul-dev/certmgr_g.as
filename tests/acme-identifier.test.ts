@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { dnsIdentifier } from '../src/runtime/acme-identifier'; test('normalizes DNS identifier', () => assert.deepEqual(dnsIdentifier(' Example.COM '), { type: 'dns', value: 'example.com' }));
