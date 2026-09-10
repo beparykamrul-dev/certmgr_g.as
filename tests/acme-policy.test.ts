@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { validateAcmeIdentifiers } from '../src/runtime/acme-policy'; test('rejects empty ACME identifiers', () => assert.throws(() => validateAcmeIdentifiers([]), /acme_identifier_count_invalid/));
