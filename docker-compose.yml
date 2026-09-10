@@ -30,7 +30,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-ftn_cert_control}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ftn_cert_control}}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ftn_cert_control}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-ftn_cert_control}
     depends_on:
       postgres:
         condition: service_healthy
