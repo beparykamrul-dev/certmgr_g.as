@@ -11,7 +11,6 @@ import { evaluatePrivilegedAction } from "./src/runtime/policy";
 import { createMemoryApprovalStore, type AsyncApprovalStore } from "./src/runtime/approval-store";
 import { createApproval, approveApproval } from "./src/runtime/approval-api";
 import { createMemoryAuditStore, type AsyncAuditStore } from "./src/runtime/audit-store";
-import { appendAudit } from "./src/runtime/audit-api";
 import { recordAudit } from "./src/runtime/audit-service-async";
 import { readConfiguredCertificates } from "./src/runtime/certificate-files";
 import { createPostgresPool } from "./src/runtime/pg-pool";
@@ -37,15 +36,17 @@ const API_TOKEN = config.apiToken;
 const operatorControlConfigured = isOperatorControlConfigured(config);
 const useDatabase = databaseConfigured(process.env);
 const db = config.databaseUrl ? createPostgresPool(config.databaseUrl) : undefined;
+const memoryApprovals = createMemoryApprovalStore();
+const memoryAudit = createMemoryAuditStore();
 const persistentStores = db ? createPersistentStores(db) : null;
 const approvalStore: AsyncApprovalStore = persistentStores?.approvals ?? {
-  put: async request => createMemoryApprovalStore().put(request),
-  get: async () => undefined,
-  list: async () => [],
+  put: async request => memoryApprovals.put(request),
+  get: async id => memoryApprovals.get(id),
+  list: async () => memoryApprovals.list(),
 };
 const auditStore: AsyncAuditStore = persistentStores?.audit ?? {
-  append: async record => createMemoryAuditStore().append(record),
-  list: async () => [],
+  append: async record => memoryAudit.append(record),
+  list: async limit => memoryAudit.list(limit),
 };
 
 if (db) {
@@ -122,7 +123,7 @@ app.post("/api/approvals", requireOperator, async (req, res) => {
   const target = typeof req.body?.target === "string" ? req.body.target.trim() : "";
   if (!action || !target) return res.status(400).json({ success: false, error: "action_and_target_required" });
   const request = await createApproval(approvalStore, action, target, actor(req));
-  const audit = persistentStores ? await recordAudit(auditStore, { action: "approval.request", actor: actor(req), target, requestId: request.id, outcome: "denied" }) : appendAudit(createMemoryAuditStore(), { action: "approval.request", actor: actor(req), target, requestId: request.id, outcome: "denied" });
+  const audit = await recordAudit(auditStore, { action: "approval.request", actor: actor(req), target, requestId: request.id, outcome: "requested" });
   res.status(201).json({ approval: request, audit });
 });
 app.post("/api/approvals/:id/approve", requireOperator, async (req, res) => {
@@ -139,7 +140,7 @@ app.post("/api/bulk-action", requireOperator, async (req, res) => {
   const action = typeof req.body?.action === "string" ? req.body.action.trim() : "privileged.action";
   const target = typeof req.body?.target === "string" ? req.body.target.trim() : "unknown";
   const approval = await createApproval(approvalStore, action, target, actor(req));
-  const audit = await recordAudit(auditStore, { action: "approval.request", actor: actor(req), target, requestId: approval.id, outcome: "denied" });
+  const audit = await recordAudit(auditStore, { action: "approval.request", actor: actor(req), target, requestId: approval.id, outcome: "requested" });
   res.status(202).json({ success: false, error: "approval_required", message: decision.reason, approval, audit });
 });
 app.get("/api/cert-inventory", async (_req, res) => {
@@ -162,7 +163,7 @@ app.get("/api/traffic-map-data", (_req, res) => res.json([]));
 app.get("/api/throughput-history", (_req, res) => res.json([]));
 app.get("/api/traffic-anomalies", (_req, res) => res.json({ providers: [], timeSlots: [], data: [], lastUpdated: null, ...unavailable("traffic-anomaly-detection") }));
 
-app.get("/api/metrics", async (_req, res) => { await refreshCollectors(); const uptime = Math.floor((Date.now() - startedAt) / 1000); const count = collectorCount(); const live = liveCollectorAvailable(); const approvals = await approvalStore.list(); const body = ["# HELP ftn_cert_control_uptime_seconds Process uptime in seconds", "# TYPE ftn_cert_control_uptime_seconds gauge", `ftn_cert_control_uptime_seconds ${uptime}`, "# HELP ftn_cert_control_provider_count Provider names known to the UI", "# TYPE ftn_cert_control_provider_count gauge", `ftn_cert_control_provider_count ${providers.length}`, "# HELP ftn_cert_control_collectors_configured Number of configured collector endpoints", "# TYPE ftn_cert_control_collectors_configured gauge", `ftn_cert_control_collectors_configured ${count}`, "# HELP ftn_cert_control_live_collector_available Whether at least one collector has a confirmed live health state", "# TYPE ftn_cert_control_live_collector_available gauge", `ftn_cert_control_live_collector_available ${live ? 1 : 0}`, "# HELP ftn_cert_control_operator_control_configured Whether privileged operator control is configured", "# TYPE ftn_cert_control_operator_control_configured gauge", `ftn_cert_control_operator_control_configured ${operatorControlConfigured ? 1 : 0}`, "# HELP ftn_cert_control_persistence_configured Whether PostgreSQL persistence is configured", "# TYPE ftn_cert_control_persistence_configured gauge", `ftn_cert_control_persistence_configured ${useDatabase ? 1 : 0}`, "# HELP ftn_cert_control_pending_approvals Number of pending operator approvals", "# TYPE ftn_cert_control_pending_approvals gauge", `ftn_cert_control_pending_approvals ${approvals.filter(a => a.state === "pending").length}`].join("\n") + "\n"; res.type("text/plain; version=0.0.4").send(body); });
+app.get("/api/metrics", async (_req, res) => { await refreshCollectors(); const uptime = Math.floor((Date.now() - startedAt) / 1000); const count = collectorCount(); const live = liveCollectorAvailable(); const approvals = await approvalStore.list(); const body = ["# HELP ftn_cert_control_uptime_seconds Process uptime in seconds", "# TYPE ftn_cert_control_uptime_seconds gauge", `ftn_cert_control_uptime_seconds ${uptime}`, "# HELP ftn_cert_control_provider_count Provider names known to the UI", "# TYPE ftn_cert_control_provider_count gauge", `ftn_cert_control_provider_count ${providers.length}`, "# HELP ftn_cert_control_collectors_configured Number of configured collector endpoints", "# TYPE ftn_cert_control_collectors_configured gauge", `ftn_cert_control_collectors_configured ${count}`, "# HELP ftn_cert_control_live_collector_available Whether at least one collector has a confirmed live health state", "# TYPE ftn_cert_control_live_collector_available gauge", `ftn_cert_control_live_collector_available ${live ? 1 : 0}`, "# HELP ftn_cert_control_operator_control_configured Whether privileged operator control is configured", "# TYPE ftn_cert_control_operator_control_configured gauge", `ftn_cert_control_operator_control_configured ${operatorControlConfigured ? 1 : 0}`, "# HELP ftn_cert_control_persistence_configured Whether PostgreSQL persistence is configured", "# TYPE ftn_cert_control_persistence_configured gauge", `ftn_cert_control_persistence_configured ${useDatabase ? 1 : 0}`, "# HELP ftn_cert_control_pending_approvals Number of pending operator approvals", "# TYPE ftn_cert_control_pending_approvals Number of pending operator approvals", `ftn_cert_control_pending_approvals ${approvals.filter(a => a.state === "pending").length}`].join("\n") + "\n"; res.type("text/plain; version=0.0.4").send(body); });
 app.get("/api/export-report", async (_req, res) => { await refreshCollectors(); const count = collectorCount(); res.setHeader("Content-Type", "application/json"); res.setHeader("Content-Disposition", "attachment; filename=ftn-cert-control-report.json"); res.send(JSON.stringify({ timestamp: new Date().toISOString(), service: "ftn-cert-control", status: "live-api", syntheticData: false, storage: useDatabase ? "postgres" : "memory-fallback", liveCollectorsConfigured: count, liveCollectorAvailable: liveCollectorAvailable(), collectors: collectorStatuses(), approvals: await approvalStore.list(), auditLogs: await auditStore.list(100) }, null, 2)); });
 
 if (NODE_ENV !== "production") { const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" }); app.use(vite.middlewares); } else { const distPath = path.join(process.cwd(), "dist"); app.use(express.static(distPath, { index: "index.html" })); app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html"))); }
