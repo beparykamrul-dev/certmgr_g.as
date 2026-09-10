@@ -1,1 +1,2 @@
-export type AuditRecord = { id: string; action: string; actor: string; outcome: 'approved' | 'denied' | 'executed' | 'failed'; target?: string; timestamp: string; requestId?: string };
+export type AuditOutcome = 'requested' | 'approved' | 'denied' | 'executed' | 'failed';
+export type AuditRecord = { id: string; action: string; actor: string; outcome: AuditOutcome; target?: string; timestamp: string; requestId?: string };
