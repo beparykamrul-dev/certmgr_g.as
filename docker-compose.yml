@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: familytimenet-certmgr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ftn_cert_control}
+      POSTGRES_USER: ${POSTGRES_USER:-ftn_cert_control}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - certmgr_postgres_data:/var/lib/postgresql/data
+    networks:
+      - backbone_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
   certmgr-control:
     build:
       context: .
@@ -10,6 +30,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-ftn_cert_control}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ftn_cert_control}}
+    depends_on:
+      postgres:
+        condition: service_healthy
     expose:
       - "3000"
     labels:
@@ -56,6 +80,9 @@ services:
       nofile:
         soft: 65535
         hard: 65535
+
+volumes:
+  certmgr_postgres_data:
 
 networks:
   backbone_net:
