@@ -1,0 +1,2 @@
+export type RenewalNotification = { subject: string; state: 'approval_required' | 'renewed' | 'failed'; message: string };
+export function renewalNotification(subject: string, state: RenewalNotification['state']): RenewalNotification { const messages = { approval_required: 'Certificate renewal requires operator approval', renewed: 'Certificate renewal completed', failed: 'Certificate renewal failed' }; return { subject, state, message: messages[state] }; }
