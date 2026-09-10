@@ -7,6 +7,7 @@ export * from './auth';
 export * from './certificates';
 export * from './config';
 export * from './ct';
+export * from './database-control';
 export * from './github';
 export * from './health';
 export * from './metrics';
