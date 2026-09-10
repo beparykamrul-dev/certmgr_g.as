@@ -19,6 +19,11 @@ import { createPersistentStores } from "./src/runtime/persistence";
 import { listCertificateInventory, replaceCertificateInventory } from "./src/runtime/postgres-certificate-store";
 import { databaseConfigured } from "./src/runtime/postgres-client";
 import { requestIdFrom } from "./src/runtime/request-context";
+import { createDatabaseTargetRegistry } from "./src/runtime/database-target-registry";
+import { PostgresDatabaseAdapter } from "./src/runtime/postgres-database-adapter";
+import { UnconfiguredDatabaseAdapter } from "./src/runtime/unconfigured-database-adapter";
+import { DatabaseControlService } from "./src/runtime/database-control-service";
+import { registerDatabaseControlRoutes } from "./src/runtime/database-control-api";
 
 const providers = [
   "Google", "AWS", "Cloudflare", "Facebook/Meta", "Netflix", "EdgeNext", "Akamai",
@@ -48,6 +53,10 @@ const auditStore: AsyncAuditStore = persistentStores?.audit ?? {
   append: async record => memoryAudit.append(record),
   list: async limit => memoryAudit.list(limit),
 };
+
+const databaseTargets = createDatabaseTargetRegistry(process.env);
+const databaseAdapter = db ? new PostgresDatabaseAdapter(db) : new UnconfiguredDatabaseAdapter();
+const databaseControl = new DatabaseControlService(databaseAdapter, databaseTargets, approvalStore);
 
 if (db) {
   await bootstrapDatabase(db);
@@ -113,6 +122,8 @@ app.get("/api/health", async (_req, res) => { await refreshCollectors(); res.jso
 app.get("/api/livez", (_req, res) => res.json({ status: "ok", service: "ftn-cert-control" }));
 app.get("/api/readyz", async (_req, res) => { await refreshCollectors(); const result = readiness({ process: true, operatorControl: operatorControlConfigured, liveCollectors: liveCollectorAvailable() }); res.status(result.ready ? 200 : 503).json({ ...result, storage: useDatabase ? "postgres" : "memory-fallback" }); });
 app.get("/api/network-status", async (_req, res) => { await refreshCollectors(); const configuredCount = collectorCount(); const live = liveCollectorAvailable(); res.json({ connected: live, status: live ? "live" : configuredCount > 0 ? "configured-but-unhealthy" : "not-configured", liveCollectorsConfigured: configuredCount, source: "live-health-probe", collectors: collectorStatuses() }); });
+
+registerDatabaseControlRoutes(app, databaseControl, requireOperator, actor);
 
 app.get("/api/alerts", (_req, res) => res.json([]));
 app.get("/api/event-history", (_req, res) => res.json([]));
