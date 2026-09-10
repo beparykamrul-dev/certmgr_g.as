@@ -1,0 +1,1 @@
+import assert from 'node:assert/strict'; import test from 'node:test'; import { rotationRequired } from '../src/runtime/certificate-rotation'; test('rotation is required inside renewal window', () => assert.equal(rotationRequired({ subject:'x', expiresAt:new Date(Date.now()+1000).toISOString(), status:'valid', source:'test' }), true));
